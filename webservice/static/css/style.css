@@ -1,0 +1,65 @@
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #141414;
+  overflow: hidden;
+}
+
+p {
+  font-family: "Bevan", cursive;
+  font-size: 130px;
+  margin: 10vh 0 0;
+  text-align: center;
+  letter-spacing: 5px;
+  background-color: #f0c674;
+  color: transparent;
+  text-shadow: 2px 2px 3px rgba(8, 8, 8, 0.342);
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  background-clip: text;
+}
+p span {
+  font-size: 1.2em;
+}
+
+code {
+  color: #bdbdbd;
+  text-align: left;
+  display: block;
+  font-size: 16px;
+  margin: 0px 0px 30px 425px;
+}
+code span {
+  color: #f0c674;
+}
+code i {
+  color: #b5bd68;
+}
+code em {
+  color: #27ec58;
+  font-style: unset;
+}
+code b {
+  color: #81a2be;
+  font-weight: 500;
+}
+
+a {
+  color: #8abeb7;
+  font-family: monospace;
+  font-size: 20px;
+  text-decoration: underline;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+@media screen and (max-width: 880px) {
+  p {
+    font-size: 14vw;
+  }
+}

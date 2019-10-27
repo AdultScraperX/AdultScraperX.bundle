@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import re
 
 from app.spider.basic import Basic
 from app.spider.data18 import Data18
@@ -19,6 +20,7 @@ from io import BytesIO
 import io
 
 import sys
+
 if sys.version.find('2', 0, 1) == 0:
     try:
         from cStringIO import StringIO
@@ -27,8 +29,9 @@ if sys.version.find('2', 0, 1) == 0:
 else:
     from io import StringIO
 
-#必填且与plex对应
-from apitoken import PLUGIN_TOKEN
+# 必填且与plex对应
+from config import PLUGIN_TOKEN
+from config import PATTERN_LIST
 
 app = Flask(__name__)
 
@@ -41,6 +44,7 @@ def warning():
         'warning.html'
     )
 
+
 @app.route("/img/<data>")
 def img(data):
     image = Basic().pictureProcessing(data)
@@ -52,6 +56,7 @@ def img(data):
     else:
         return ''
 
+
 @app.route("/manual/<lang>/<q>/<token>")
 def manual(lang, q, token):
     '''
@@ -61,7 +66,7 @@ def manual(lang, q, token):
         if token != PLUGIN_TOKEN:
             return 'T-Error!'
     else:
-            return 'T-Error!'
+        return 'T-Error!'
 
     jsondata = ''
     items = {
@@ -93,7 +98,7 @@ def manual(lang, q, token):
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Arzon': arzon_item['data']})
         ########################################################################
-        
+
         ########################################################################
         ### https://www.javbus.com/ ###
         ########################################################################
@@ -113,7 +118,7 @@ def manual(lang, q, token):
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Onejav': onejav_item['data']})
         ########################################################################
-        
+
         ########################################################################
         ### Anime https://www.arzon.jp/ ###
         ########################################################################
@@ -134,14 +139,37 @@ def manual(lang, q, token):
 def auto(lang, q, token):
     '''
     自动查询：返回最先成功的item
-    '''    
+    '''
     if PLUGIN_TOKEN != '':
         if token != PLUGIN_TOKEN:
             return 'T-Error!'
     else:
-            return 'T-Error!'
+        return 'T-Error!'
 
-    jsondata = ''
+    # 正则列表
+
+    for pattern in PATTERN_LIST:
+        codeList = re.findall(re.compile(pattern), q)
+        if len(codeList) == 0:
+            break
+        for code in codeList:
+            items = searchAuto(lang, formatName(code))
+            if items.get("issuccess") == "issuccess":
+                return json.dumps(items)
+
+    return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
+
+
+def formatName(code):
+    if code[-4] != "-":
+        listCoed = list(code)
+        listCoed.insert(len(code) - 3, "-")
+        return "".join(listCoed)
+    return code
+
+
+def searchAuto(lang, q):
+    print(q)
     items = {
         'issuccess': 'false',
         'json_data': [],
@@ -156,8 +184,7 @@ def auto(lang, q, token):
             if data18_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Data18': data18_item['data']})
-                jsondata = json.dumps(items)
-                return jsondata
+                return items
         ########################################################################
 
         ########################################################################
@@ -182,8 +209,7 @@ def auto(lang, q, token):
             if arzon_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Arzon': arzon_item['data']})
-                jsondata = json.dumps(items)
-                return jsondata
+                return items
         ########################################################################
 
         ########################################################################
@@ -194,8 +220,7 @@ def auto(lang, q, token):
             if javbus_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Javbus': javbus_item['data']})
-                jsondata = json.dumps(items)
-                return jsondata
+                return items
         ########################################################################
 
         ########################################################################
@@ -206,8 +231,7 @@ def auto(lang, q, token):
             if onejav_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Onejav': onejav_item['data']})
-                jsondata = json.dumps(items)
-                return jsondata
+                return items
         ########################################################################
 
         ########################################################################
@@ -219,18 +243,13 @@ def auto(lang, q, token):
                 items.update({'issuccess': 'true'})
                 items['json_data'].append(
                     {'ArzonAnime': arzon_anime_item['data']})
-                jsondata = json.dumps(items)
-                return jsondata
+                return items
         ########################################################################
-
-
-    jsondata = json.dumps(items)
-    return jsondata
 
 
 if __name__ == "__main__":
     app.run(
-            host='0.0.0.0',
-            port=8888,
-            debug=False
-        )
+        host='0.0.0.0',
+        port=8888,
+        debug=False
+    )

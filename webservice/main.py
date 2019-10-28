@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import re
+from urllib import parse
 
 from app.spider.basic import Basic
 from app.spider.data18 import Data18
@@ -28,10 +29,10 @@ if sys.version.find('2', 0, 1) == 0:
         from StringIO import StringIO
 else:
     from io import StringIO
+    from io import BytesIO
 
 # 必填且与plex对应
-from config import PLUGIN_TOKEN
-from config import PATTERN_LIST
+import config as CONFIG
 
 app = Flask(__name__)
 
@@ -49,8 +50,12 @@ def warning():
 def img(data):
     image = Basic().pictureProcessing(data)
     if image != None:
-        img_io = StringIO()
-        image.save(img_io, 'PNG')
+        try:
+            img_io = StringIO()
+            image.save(img_io, 'PNG')
+        except Exception:
+            img_io = BytesIO()
+            image.save(img_io, 'PNG')
         img_io.seek(0)
         return send_file(img_io, mimetype='image/jpg')
     else:
@@ -62,8 +67,8 @@ def manual(lang, q, token):
     '''
     手动查询：返回所有成功的item
     '''
-    if PLUGIN_TOKEN != '':
-        if token != PLUGIN_TOKEN:
+    if CONFIG.PLUGIN_TOKEN != '':
+        if token != CONFIG.PLUGIN_TOKEN:
             return 'T-Error!'
     else:
         return 'T-Error!'
@@ -140,21 +145,23 @@ def auto(lang, q, token):
     '''
     自动查询：返回最先成功的item
     '''
-    if PLUGIN_TOKEN != '':
-        if token != PLUGIN_TOKEN:
+    if CONFIG.PLUGIN_TOKEN != '':
+        if token != CONFIG.PLUGIN_TOKEN:
             return 'T-Error!'
     else:
         return 'T-Error!'
 
     # 正则列表
-
-    for pattern in PATTERN_LIST:
+    q = parse.unquote(q)
+    print("filename=" + q)
+    for pattern in CONFIG.PATTERN_LIST:
         codeList = re.findall(re.compile(pattern), q)
         if len(codeList) == 0:
             break
         for code in codeList:
             items = searchAuto(lang, formatName(code))
-            if items.get("issuccess") == "issuccess":
+            if items.get("issuccess") == "true":
+                print("success")
                 return json.dumps(items)
 
     return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
@@ -162,14 +169,17 @@ def auto(lang, q, token):
 
 def formatName(code):
     if code[-4] != "-":
-        listCoed = list(code)
-        listCoed.insert(len(code) - 3, "-")
-        return "".join(listCoed)
+        if code[-4] == " ":
+            return code.replace(" ", "-")
+        else:
+            listCoed = list(code)
+            listCoed.insert(len(code) - 3, "-")
+            return "".join(listCoed)
     return code
 
 
 def searchAuto(lang, q):
-    print(q)
+    print("code=" + q)
     items = {
         'issuccess': 'false',
         'json_data': [],
@@ -184,6 +194,7 @@ def searchAuto(lang, q):
             if data18_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Data18': data18_item['data']})
+                print("match=" + q)
                 return items
         ########################################################################
 
@@ -209,6 +220,7 @@ def searchAuto(lang, q):
             if arzon_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Arzon': arzon_item['data']})
+                print("match=" + q)
                 return items
         ########################################################################
 
@@ -220,6 +232,7 @@ def searchAuto(lang, q):
             if javbus_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Javbus': javbus_item['data']})
+                print("match=" + q)
                 return items
         ########################################################################
 
@@ -231,6 +244,7 @@ def searchAuto(lang, q):
             if onejav_item['issuccess']:
                 items.update({'issuccess': 'true'})
                 items['json_data'].append({'Onejav': onejav_item['data']})
+                print("match=" + q)
                 return items
         ########################################################################
 
@@ -241,15 +255,16 @@ def searchAuto(lang, q):
         for arzon_anime_item in arzon_anime_items:
             if arzon_anime_item['issuccess']:
                 items.update({'issuccess': 'true'})
-                items['json_data'].append(
-                    {'ArzonAnime': arzon_anime_item['data']})
+                items['json_data'].append({'ArzonAnime': arzon_anime_item['data']})
+                print("match=" + q)
                 return items
         ########################################################################
+    return items
 
 
 if __name__ == "__main__":
     app.run(
-        host='0.0.0.0',
-        port=8888,
-        debug=False
+        host=CONFIG.HOST,
+        port=CONFIG.PORT,
+        debug=CONFIG.DEBUG
     )

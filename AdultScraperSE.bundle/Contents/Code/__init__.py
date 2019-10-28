@@ -5,7 +5,7 @@ import os
 import base64
 import json
 from datetime import datetime
-
+import urllib
 PREFIX = '/video/libraryupdater'
 NAME = 'AdultScraperSE v2.1.1'
 ART = 'art-default.jpg'
@@ -33,8 +33,9 @@ def MainMenu():
         pass
     if len(all_keys) > 0:
         oc.add(DirectoryObject(key=Callback(
-            UpdateType, title=u''+unicode('所有部分', "utf-8"), key=all_keys), title=u''+unicode('更新所有部分,请返回到片库查看!', "utf-8")))
-    oc.add(PrefsObject(title=u''+unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
+            UpdateType, title=u'' + unicode('所有部分', "utf-8"), key=all_keys),
+            title=u'' + unicode('更新所有部分,请返回到片库查看!', "utf-8")))
+    oc.add(PrefsObject(title=u'' + unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
     return oc
 
 
@@ -42,11 +43,11 @@ def MainMenu():
 def UpdateType(title, key):
     oc = ObjectContainer(title2=title)
     oc.add(DirectoryObject(key=Callback(
-        UpdateSection, title=title, key=key), title=u''+unicode('扫描', "utf-8")))
+        UpdateSection, title=title, key=key), title=u'' + unicode('扫描', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, analyze=True), title=u''+unicode('分析媒体', "utf-8")))
+                                        key=key, analyze=True), title=u'' + unicode('分析媒体', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, force=True), title=u''+unicode('强制元数据刷新', "utf-8")))
+                                        key=key, force=True), title=u'' + unicode('强制元数据刷新', "utf-8")))
     return oc
 
 
@@ -99,13 +100,16 @@ class AdultScraperSEAgent(Agent.Movies):
         if lang == 'en':
             queryname = self.querynameVoleClean(media.name.replace(' ', '%20'))
         elif lang == 'ja':
-            queryname = self.querynameVoleClean(media.name.replace(' ', '-'))
-
+            # queryname = self.querynameVoleClean(media.name.replace(' ', '-'))
+            queryname = parse.quote(media.name)
+            print(queryname)
         if manual:
             HTTP.ClearCache()
             HTTP.CacheTime = CACHE_1MONTH
             jsondata = HTTP.Request(
-                '%s:%s/manual/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname,Prefs['Service_Token']), timeout=timeout).content
+                '%s:%s/manual/%s/%s/%s' % (
+                Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
+                timeout=timeout).content
             base64jsondata = base64.b64decode(jsondata)
             Log(base64jsondata)
             dict_data_list = json.loads(base64jsondata)
@@ -128,7 +132,6 @@ class AdultScraperSEAgent(Agent.Movies):
                             if item_key == 'm_number':
                                 id = data.get(item_key)
                             if item_key == 'm_title':
-
                                 poster_url = data['m_poster']
                                 r = Prefs['Poster_Cutting_X']
                                 w = Prefs['Poster_Cutting_W']
@@ -144,7 +147,7 @@ class AdultScraperSEAgent(Agent.Movies):
                                 poster_data_json = json.dumps(poster_data)
                                 url = '%s:%s/img/%s' % (
                                     Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json))
-                                    
+
                                 thumb = url
                                 name = '%s: %s %s' % (
                                     wk, data['m_number'], data.get(item_key))
@@ -159,7 +162,9 @@ class AdultScraperSEAgent(Agent.Movies):
             HTTP.ClearCache()
             HTTP.CacheTime = CACHE_1MONTH
             jsondata = HTTP.Request(
-                '%s:%s/auto/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname,Prefs['Service_Token']), timeout=timeout).content
+                '%s:%s/auto/%s/%s/%s' % (
+                Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
+                timeout=timeout).content
             dict_data = json.loads(jsondata)
             if dict_data['issuccess'] == 'true':
                 data_list = dict_data['json_data']
@@ -332,7 +337,7 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
 
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
@@ -348,7 +353,7 @@ class AdultScraperSEAgent(Agent.Movies):
         medianame = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
 
         return medianame
@@ -360,7 +365,7 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
         return extensionname

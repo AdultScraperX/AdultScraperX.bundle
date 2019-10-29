@@ -5,9 +5,9 @@ import os
 import base64
 import json
 from datetime import datetime
-import urllib
+
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperSE v2.1.1'
+NAME = 'AdultScraperSE v2.2.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -15,6 +15,15 @@ PMS_URL = 'http://127.0.0.1:32400/library/sections/'
 
 def Start():
     HTTP.CacheTime = 0
+    # fpath = '/volume1/@appstore/Plex Media Server/Resources/'
+    # fname = 'chunk-2-'
+    # # 路径（鼠标右键查看文件属性）
+    # path = '/volume1/@appstore/"Plex Media Server"/Resources'
+    # files = os.listdir(path)
+    # # 查找文件名字含有fish且以.png后缀的文件
+    # for f in files:
+    #     if fname in f and f.endswith('.js'):
+    #         Log('Found it!' + f)
 
 
 @handler(PREFIX, NAME, thumb=ICON, art=ART)
@@ -33,9 +42,8 @@ def MainMenu():
         pass
     if len(all_keys) > 0:
         oc.add(DirectoryObject(key=Callback(
-            UpdateType, title=u'' + unicode('所有部分', "utf-8"), key=all_keys),
-            title=u'' + unicode('更新所有部分,请返回到片库查看!', "utf-8")))
-    oc.add(PrefsObject(title=u'' + unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
+            UpdateType, title=u''+unicode('所有部分', "utf-8"), key=all_keys), title=u''+unicode('更新所有部分,请返回到片库查看!', "utf-8")))
+    oc.add(PrefsObject(title=u''+unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
     return oc
 
 
@@ -43,11 +51,11 @@ def MainMenu():
 def UpdateType(title, key):
     oc = ObjectContainer(title2=title)
     oc.add(DirectoryObject(key=Callback(
-        UpdateSection, title=title, key=key), title=u'' + unicode('扫描', "utf-8")))
+        UpdateSection, title=title, key=key), title=u''+unicode('扫描', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, analyze=True), title=u'' + unicode('分析媒体', "utf-8")))
+                                        key=key, analyze=True), title=u''+unicode('分析媒体', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, force=True), title=u'' + unicode('强制元数据刷新', "utf-8")))
+                                        key=key, force=True), title=u''+unicode('强制元数据刷新', "utf-8")))
     return oc
 
 
@@ -95,100 +103,124 @@ class AdultScraperSEAgent(Agent.Movies):
 
     def search(self, results, media, lang, manual):
 
-        timeout = 300
-        queryname = ''
-        if lang == 'en':
-            queryname = self.querynameVoleClean(media.name.replace(' ', '%20'))
-        elif lang == 'ja':
-            # queryname = self.querynameVoleClean(media.name.replace(' ', '-'))
-            queryname = parse.quote(media.name)
-            print(queryname)
-        if manual:
-            HTTP.ClearCache()
-            HTTP.CacheTime = CACHE_1MONTH
-            jsondata = HTTP.Request(
-                '%s:%s/manual/%s/%s/%s' % (
-                Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
-                timeout=timeout).content
-            base64jsondata = base64.b64decode(jsondata)
-            Log(base64jsondata)
-            dict_data_list = json.loads(base64jsondata)
-            if dict_data_list['issuccess'] == 'true':
-                json_data_list = dict_data_list['json_data']
+        # 获取path
+        dirTagLine = None
+        mediaPath = String.Unquote(media.filename, usePlus=False)
+        mediaPathSplitItems = mediaPath.split('/')
+        for item in mediaPathSplitItems:
+            # 正则判断是否匹配 有结果就给出
+            tmp = re.findall(Prefs['Dir_M'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'M'
+                break
+            tmp = re.findall(Prefs['Dir_NM'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'NM'
+                break
+            tmp = re.findall(Prefs['Dir_A'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'A'
+                break
+            tmp = re.findall(Prefs['Dir_E'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'E'
+                break
 
-                if Prefs['Orderby'] == '默认':
-                    pass
-                elif Prefs['Orderby'] == '反序':
-                    json_data_list.reverse()
+        if dirTagLine != None:
 
-                for json_data in json_data_list:
-                    for data_list_key in json_data:
+            timeout = 300
+            queryname = ''
+            if lang == 'en':
+                queryname = self.querynameVoleClean(
+                    media.name.replace(' ', '%20'))
+            elif lang == 'ja':
+                queryname = self.querynameVoleClean(
+                    media.name.replace(' ', '-'))
+
+            if manual:
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                jsondata = HTTP.Request(
+                    '%s:%s/manual/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token'],dirTagLine), timeout=timeout).content
+                base64jsondata = base64.b64decode(jsondata)
+                Log(base64jsondata)
+                dict_data_list = json.loads(base64jsondata)
+                if dict_data_list['issuccess'] == 'true':
+                    json_data_list = dict_data_list['json_data']
+
+                    if Prefs['Orderby'] == '默认':
+                        pass
+                    elif Prefs['Orderby'] == '反序':
+                        json_data_list.reverse()
+
+                    for json_data in json_data_list:
+                        for data_list_key in json_data:
+                            id = ''
+                            name = ''
+                            media_d = ''
+                            wk = data_list_key
+                            data = json_data.get(data_list_key)
+                            for item_key in data:
+                                if item_key == 'm_number':
+                                    id = data.get(item_key)
+                                if item_key == 'm_title':
+
+                                    poster_url = data['m_poster']
+                                    r = Prefs['Poster_Cutting_X']
+                                    w = Prefs['Poster_Cutting_W']
+                                    h = Prefs['Poster_Cutting_H']
+                                    poster_data = {
+                                        'mode': 'poster',
+                                        'url': poster_url,
+                                        'r': r,
+                                        'w': w,
+                                        'h': h,
+                                        'webkey': wk.lower()
+                                    }
+                                    poster_data_json = json.dumps(poster_data)
+                                    url = '%s:%s/img/%s' % (
+                                        Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json))
+
+                                    thumb = url
+                                    name = '%s: %s %s' % (
+                                        wk, data['m_number'], data.get(item_key))
+                            data_d = json.dumps(data)
+                            id = base64.b64encode(
+                                '%s|M|%s|%s' % (id, wk, data_d))
+                            score = 100
+                            new_result = dict(
+                                id=id, name=name, year='', score=score, lang=lang, thumb=thumb)
+                            results.Append(
+                                MetadataSearchResult(**new_result))
+            else:
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                jsondata = HTTP.Request(
+                    '%s:%s/auto/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']), timeout=timeout).content
+                dict_data = json.loads(jsondata)
+                if dict_data['issuccess'] == 'true':
+                    data_list = dict_data['json_data']
+                    for data in data_list:
                         id = ''
                         name = ''
                         media_d = ''
-                        wk = data_list_key
-                        data = json_data.get(data_list_key)
-                        for item_key in data:
-                            if item_key == 'm_number':
-                                id = data.get(item_key)
-                            if item_key == 'm_title':
-                                poster_url = data['m_poster']
-                                r = Prefs['Poster_Cutting_X']
-                                w = Prefs['Poster_Cutting_W']
-                                h = Prefs['Poster_Cutting_H']
-                                poster_data = {
-                                    'mode': 'poster',
-                                    'url': poster_url,
-                                    'r': r,
-                                    'w': w,
-                                    'h': h,
-                                    'webkey': wk.lower()
-                                }
-                                poster_data_json = json.dumps(poster_data)
-                                url = '%s:%s/img/%s' % (
-                                    Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                        wk = data
+                        for webkey in data:
+                            media_dict = data.get(webkey)
+                            wk = webkey
+                            for item_key in media_dict:
+                                if item_key == 'm_number':
+                                    id = media_dict.get(item_key)
+                                if item_key == 'm_title':
+                                    name = media_dict.get(item_key)
 
-                                thumb = url
-                                name = '%s: %s %s' % (
-                                    wk, data['m_number'], data.get(item_key))
-                        data_d = json.dumps(data)
-                        id = base64.b64encode('%s|M|%s|%s' % (id, wk, data_d))
+                            media_d = json.dumps(media_dict)
+                        id = base64.b64encode('%s|A|%s|%s' % (id, wk, media_d))
                         score = 100
                         new_result = dict(
-                            id=id, name=name, year='', score=score, lang=lang, thumb=thumb)
+                            id=id, name=name, year='', score=score, lang=lang)
                         results.Append(
                             MetadataSearchResult(**new_result))
-        else:
-            HTTP.ClearCache()
-            HTTP.CacheTime = CACHE_1MONTH
-            jsondata = HTTP.Request(
-                '%s:%s/auto/%s/%s/%s' % (
-                Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
-                timeout=timeout).content
-            dict_data = json.loads(jsondata)
-            if dict_data['issuccess'] == 'true':
-                data_list = dict_data['json_data']
-                for data in data_list:
-                    id = ''
-                    name = ''
-                    media_d = ''
-                    wk = data
-                    for webkey in data:
-                        media_dict = data.get(webkey)
-                        wk = webkey
-                        for item_key in media_dict:
-                            if item_key == 'm_number':
-                                id = media_dict.get(item_key)
-                            if item_key == 'm_title':
-                                name = media_dict.get(item_key)
-
-                        media_d = json.dumps(media_dict)
-                    id = base64.b64encode('%s|A|%s|%s' % (id, wk, media_d))
-                    score = 100
-                    new_result = dict(
-                        id=id, name=name, year='', score=score, lang=lang)
-                    results.Append(
-                        MetadataSearchResult(**new_result))
 
     def update(self, metadata, media, lang):
         timeout = 300
@@ -337,7 +369,7 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
 
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist) - 1):
+            if i == (len(mediafilepathlist)-1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
@@ -353,7 +385,7 @@ class AdultScraperSEAgent(Agent.Movies):
         medianame = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist) - 1):
+            if i == (len(mediafilepathlist)-1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
 
         return medianame
@@ -365,7 +397,23 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist) - 1):
+            if i == (len(mediafilepathlist)-1):
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
         return extensionname
+
+    def rex(self, re_str, st):
+        # Log(re_str)
+        upper_lower_count = 0
+        number_dict = []
+        re_items = re.findall(re_str, st)
+        if re_items != None:
+            for re_item in re_items:
+                if re_item.isupper():
+                    upper_lower_count+1
+                    number_dict.append(re_item)
+                if re_item.islower():
+                    upper_lower_count+1
+                    number_dict.append(re_item)
+        # Log(number_dict[0])
+        return number_dict[0]

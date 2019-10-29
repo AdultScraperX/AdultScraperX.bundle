@@ -18,6 +18,30 @@
         "default": ""
     },
     {
+        "id": "Dir_M",
+        "label": "*日本-有码目录标记",
+        "type": "text",
+        "default": "=M="
+    },
+    {
+        "id": "Dir_NM",
+        "label": "*日本-无码目录标记",
+        "type": "text",
+        "default": "=NM="
+    },
+    {
+        "id": "Dir_A",
+        "label": "*日本-动漫目录标记",
+        "type": "text",
+        "default": "=A="
+    },
+    {
+        "id": "Dir_E",
+        "label": "*欧美-目录标记",
+        "type": "text",
+        "default": "=E="
+    },
+    {
         "id": "Poster_Cutting_X",
         "label": "横向裁切位置",
         "type": "text",

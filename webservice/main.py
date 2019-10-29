@@ -62,8 +62,8 @@ def img(data):
         return ''
 
 
-@app.route("/manual/<lang>/<q>/<token>")
-def manual(lang, q, token):
+@app.route("/manual/<dirTagLine>/<q>/<token>")
+def manual(dirTagLine, q, token):
     '''
     手动查询：返回所有成功的item
     '''
@@ -72,76 +72,17 @@ def manual(lang, q, token):
             return 'T-Error!'
     else:
         return 'T-Error!'
-
-    jsondata = ''
-    items = {
-        'issuccess': 'false',
-        'json_data': [],
-        'ex': ''
-    }
-    if lang == 'en':
-        '欧美'
-        ########################################################################
-        ### https://data18.empirestores.co/ ###
-        ########################################################################
-        data18_items = Data18().search(q)
-        for data18_item in data18_items:
-            if data18_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Data18': data18_item['data']})
-        ########################################################################
-
-    elif lang == 'ja':
-        '日本'
-
-        ########################################################################
-        ### AV https://www.arzon.jp/ ###
-        ########################################################################
-        arzon_item_list = Arzon().search(q)
-        for arzon_item in arzon_item_list:
-            if arzon_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Arzon': arzon_item['data']})
-        ########################################################################
-
-        ########################################################################
-        ### https://www.javbus.com/ ###
-        ########################################################################
-        javbus_item_list = Javbus().search(q)
-        for javbus_item in javbus_item_list:
-            if javbus_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Javbus': javbus_item['data']})
-        ########################################################################
-
-        ########################################################################
-        ### https://onejav.com/ ###
-        ########################################################################
-        onejav_item_list = Onejav().search(q)
-        for onejav_item in onejav_item_list:
-            if onejav_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Onejav': onejav_item['data']})
-        ########################################################################
-
-        ########################################################################
-        ### Anime https://www.arzon.jp/ ###
-        ########################################################################
-        arzon_anime_item_list = ArzonAnime().search(q)
-        for arzon_anime_item in arzon_anime_item_list:
-            if arzon_anime_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append(
-                    {'ArzonAnime': arzon_anime_item['data']})
-        ########################################################################
-
+    items = []
+    if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
+        for template in CONFIG.SOURCE_LIST[dirTagLine]:
+            items = search(template['webList'], q, False)
     jsondata = json.dumps(items)
     base64jsondata = base64.b64encode(jsondata)
     return base64jsondata
 
 
-@app.route('/auto/<lang>/<q>/<token>')
-def auto(lang, q, token):
+@app.route('/auto/<dirTagLine>/<q>/<token>')
+def auto(dirTagLine, q, token):
     '''
     自动查询：返回最先成功的item
     '''
@@ -151,115 +92,64 @@ def auto(lang, q, token):
     else:
         return 'T-Error!'
 
-    # 正则列表
-    q = parse.unquote(q)
+    q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
     print("filename=" + q)
-    for pattern in CONFIG.PATTERN_LIST:
-        codeList = re.findall(re.compile(pattern), q)
-        if len(codeList) == 0:
-            break
-        for code in codeList:
-            items = searchAuto(lang, formatName(code))
-            if items.get("issuccess") == "true":
-                print("success")
-                return json.dumps(items)
+    print("dirTagLine=" + dirTagLine)
+
+    if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
+        for template in CONFIG.SOURCE_LIST[dirTagLine]:
+            # 循环模板列表
+            codeList = re.findall(re.compile(template['pattern']), q)
+            if len(codeList) == 0:
+                break
+            # 对正则匹配结果进行搜索
+            for code in codeList:
+                items = search(template['webList'], template['formatter'].format(code), True)
+                if items.get("issuccess") == "true":
+                    print("success")
+                    return json.dumps(items)
 
     return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
 
 
-def formatName(code):
-    if code[-4] != "-":
-        if code[-4] == " ":
-            return code.replace(" ", "-")
-        else:
-            listCoed = list(code)
-            listCoed.insert(len(code) - 3, "-")
-            return "".join(listCoed)
-    return code
+def search(webList, q, autoFlag):
+    """
+    根据搜刮网站列表进行数据搜刮
+    :param webList: 搜刮网站的List 类型应为 app.spider.BasicSpider 的子类
+    :param q: 待匹配的文件名
+    :param autoFlag: 自动表示 True 为开启，开启后仅返回搜索到的第一个结果 ，False 为关闭
+    :return:
+        未查询到example
+        {
+            'issuccess': 'false',
+            'json_data': [],
+            'ex': ''
+        }
+        查询到
+        {
+        'issuccess': 'true',
+        'json_data': [some json data],
+        'ex': ''
+        }
+    """
 
-
-def searchAuto(lang, q):
     print("code=" + q)
-    items = {
+    result = {
         'issuccess': 'false',
         'json_data': [],
         'ex': ''
     }
-    if lang == 'en':
-        ########################################################################
-        ### https://data18.empirestores.co/ ###
-        ########################################################################
-        data18_items = Data18().search(q)
-        for data18_item in data18_items:
-            if data18_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Data18': data18_item['data']})
+    for webSiteClass in webList:
+        webSite = webSiteClass()
+        items = webSite.search(q)
+        for item in items:
+            if item['issuccess']:
+                result.update({'issuccess': 'true'})
+                result['json_data'].append({webSite.getName(): item['data']})
                 print("match=" + q)
-                return items
-        ########################################################################
-
-        ########################################################################
-        ### https://www.dorcelvision.com/en/ ###
-        ########################################################################
-        '''       
-        dorcelvision_item = Dorcelvision().search(q)
-        if dorcelvision_item['issuccess']:
-            items.update({'issuccess': 'true', 'json_data': [{
-                        'Dorcelvision': dorcelvision_item['data']}]})
-            jsondata = json.dumps(items)
-            return jsondata
-        '''
-        ########################################################################
-
-    elif lang == 'ja':
-        ########################################################################
-        ### AV https://www.arzon.jp/ ###
-        ########################################################################
-        arzon_items = Arzon().search(q)
-        for arzon_item in arzon_items:
-            if arzon_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Arzon': arzon_item['data']})
-                print("match=" + q)
-                return items
-        ########################################################################
-
-        ########################################################################
-        ### https://www.javbus.com/ ###
-        ########################################################################
-        javbus_items = Javbus().search(q)
-        for javbus_item in javbus_items:
-            if javbus_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Javbus': javbus_item['data']})
-                print("match=" + q)
-                return items
-        ########################################################################
-
-        ########################################################################
-        ### https://onejav.com/ ###
-        ########################################################################
-        onejav_itemS = Onejav().search(q)
-        for onejav_item in onejav_itemS:
-            if onejav_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'Onejav': onejav_item['data']})
-                print("match=" + q)
-                return items
-        ########################################################################
-
-        ########################################################################
-        ### Anime https://www.arzon.jp/ ###
-        ########################################################################
-        arzon_anime_items = ArzonAnime().search(q)
-        for arzon_anime_item in arzon_anime_items:
-            if arzon_anime_item['issuccess']:
-                items.update({'issuccess': 'true'})
-                items['json_data'].append({'ArzonAnime': arzon_anime_item['data']})
-                print("match=" + q)
-                return items
-        ########################################################################
-    return items
+                if autoFlag:
+                    return result
+    return result
 
 
 if __name__ == "__main__":

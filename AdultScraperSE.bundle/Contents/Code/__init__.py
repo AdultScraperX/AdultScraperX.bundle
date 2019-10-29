@@ -42,8 +42,9 @@ def MainMenu():
         pass
     if len(all_keys) > 0:
         oc.add(DirectoryObject(key=Callback(
-            UpdateType, title=u''+unicode('所有部分', "utf-8"), key=all_keys), title=u''+unicode('更新所有部分,请返回到片库查看!', "utf-8")))
-    oc.add(PrefsObject(title=u''+unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
+            UpdateType, title=u'' + unicode('所有部分', "utf-8"), key=all_keys),
+            title=u'' + unicode('更新所有部分,请返回到片库查看!', "utf-8")))
+    oc.add(PrefsObject(title=u'' + unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
     return oc
 
 
@@ -51,11 +52,11 @@ def MainMenu():
 def UpdateType(title, key):
     oc = ObjectContainer(title2=title)
     oc.add(DirectoryObject(key=Callback(
-        UpdateSection, title=title, key=key), title=u''+unicode('扫描', "utf-8")))
+        UpdateSection, title=title, key=key), title=u'' + unicode('扫描', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, analyze=True), title=u''+unicode('分析媒体', "utf-8")))
+                                        key=key, analyze=True), title=u'' + unicode('分析媒体', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, force=True), title=u''+unicode('强制元数据刷新', "utf-8")))
+                                        key=key, force=True), title=u'' + unicode('强制元数据刷新', "utf-8")))
     return oc
 
 
@@ -111,37 +112,35 @@ class AdultScraperSEAgent(Agent.Movies):
             # 正则判断是否匹配 有结果就给出
             tmp = re.findall(Prefs['Dir_M'], item)
             if len(tmp) == 1:
-                dirTagLine = 'M'
+                dirTagLine = 'censored'
                 break
             tmp = re.findall(Prefs['Dir_NM'], item)
             if len(tmp) == 1:
-                dirTagLine = 'NM'
+                dirTagLine = 'uncensored'
                 break
             tmp = re.findall(Prefs['Dir_A'], item)
             if len(tmp) == 1:
-                dirTagLine = 'A'
+                dirTagLine = 'animation'
                 break
             tmp = re.findall(Prefs['Dir_E'], item)
             if len(tmp) == 1:
-                dirTagLine = 'E'
+                dirTagLine = 'europe'
                 break
-
+        Log("dirTagLine======" + dirTagLine)
         if dirTagLine != None:
 
             timeout = 300
-            queryname = ''
-            if lang == 'en':
-                queryname = self.querynameVoleClean(
-                    media.name.replace(' ', '%20'))
-            elif lang == 'ja':
-                queryname = self.querynameVoleClean(
-                    media.name.replace(' ', '-'))
+            queryname = base64.b64encode(media.name).replace('/', '[s]')
+            Log("filename========" + media.name)
+            Log("queryname========" + queryname)
 
             if manual:
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
-                    '%s:%s/manual/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token'],dirTagLine), timeout=timeout).content
+                    '%s:%s/manual/%s/%s/%s' % (
+                    Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
+                    timeout=timeout).content
                 base64jsondata = base64.b64decode(jsondata)
                 Log(base64jsondata)
                 dict_data_list = json.loads(base64jsondata)
@@ -164,7 +163,6 @@ class AdultScraperSEAgent(Agent.Movies):
                                 if item_key == 'm_number':
                                     id = data.get(item_key)
                                 if item_key == 'm_title':
-
                                     poster_url = data['m_poster']
                                     r = Prefs['Poster_Cutting_X']
                                     w = Prefs['Poster_Cutting_W']
@@ -196,7 +194,9 @@ class AdultScraperSEAgent(Agent.Movies):
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
-                    '%s:%s/auto/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']), timeout=timeout).content
+                    '%s:%s/auto/%s/%s/%s' % (
+                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                    timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
@@ -369,7 +369,7 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
 
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
@@ -385,7 +385,7 @@ class AdultScraperSEAgent(Agent.Movies):
         medianame = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 medianame = mediafilepathlist[i].split('%2E')[0]
 
         return medianame
@@ -397,7 +397,7 @@ class AdultScraperSEAgent(Agent.Movies):
         extensionname = ''
         mediafilepathlist = media.filename.split('%2F')
         for i in range(len(mediafilepathlist)):
-            if i == (len(mediafilepathlist)-1):
+            if i == (len(mediafilepathlist) - 1):
                 extensionname = mediafilepathlist[i].split('%2E')[1]
 
         return extensionname
@@ -410,10 +410,10 @@ class AdultScraperSEAgent(Agent.Movies):
         if re_items != None:
             for re_item in re_items:
                 if re_item.isupper():
-                    upper_lower_count+1
+                    upper_lower_count + 1
                     number_dict.append(re_item)
                 if re_item.islower():
-                    upper_lower_count+1
+                    upper_lower_count + 1
                     number_dict.append(re_item)
         # Log(number_dict[0])
         return number_dict[0]

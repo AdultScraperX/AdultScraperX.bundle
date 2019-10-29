@@ -5,12 +5,10 @@ from app.internel.tools import Tools
 from app.internel.config import ConfigManager
 import json
 
+from app.spider.basiceSpider import BasicSpider
 
-class Data18():
-    def __init__(self):
-        self.basic = Basic()
-        self.tools = Tools()
-        self.configmanager = ConfigManager()
+
+class Data18(BasicSpider):
 
     def search(self, q):
         '''

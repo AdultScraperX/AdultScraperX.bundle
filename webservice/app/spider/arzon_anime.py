@@ -5,13 +5,10 @@ from app.internel.tools import Tools
 from app.internel.config import ConfigManager
 import json
 
+from app.spider.censoredSpider import CensoredSpider
 
-class ArzonAnime():
 
-    def __init__(self):
-        self.basic = Basic()
-        self.tools = Tools()
-        self.configmanager = ConfigManager()
+class ArzonAnime(CensoredSpider):
 
     def search(self, q):
         '''

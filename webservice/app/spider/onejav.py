@@ -5,13 +5,10 @@ from app.internel.tools import Tools
 from app.internel.config import ConfigManager
 import json
 
+from app.spider.censoredSpider import CensoredSpider
 
-class Onejav():
 
-    def __init__(self):
-        self.basic = Basic()
-        self.tools = Tools()
-        self.configmanager = ConfigManager()
+class Onejav(CensoredSpider):
 
     def search(self, q):
         '''

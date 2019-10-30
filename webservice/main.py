@@ -10,7 +10,7 @@ from app.spider.javbus import Javbus
 from app.spider.arzon_anime import ArzonAnime
 from app.spider.arzon import Arzon
 
-import base64   
+import base64
 import requests as req
 from flask import Flask
 from flask import render_template

@@ -28,7 +28,7 @@ class Javbus(CensoredSpider):
                             html_item['html'], q)
                         item.append({'issuccess': True, 'data': media_item})
         else:
-            pass #print repr(html_item['ex'])
+            pass  # print repr(html_item['ex'])
 
         return item
 

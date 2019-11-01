@@ -12,17 +12,17 @@ class Onejav(CensoredSpider):
         item = []
 
         '访问站点'
-        url = 'https://onejav.com/torrent/%s' % q.lower().replace('-','')
+        url = 'https://onejav.com/torrent/%s' % q.lower().replace('-', '')
         html_item = self.basic.getHtmlByurl(url)
         if html_item['issuccess']:
-            media_item = self.analysisMediaHtmlByxpath(html_item['html'],q.upper())
+            media_item = self.analysisMediaHtmlByxpath(html_item['html'], q.upper())
             item.append({'issuccess': True, 'data': media_item})
         else:
-            pass #print repr(html_item['ex'])
+            pass  # print repr(html_item['ex'])
 
         return item
 
-    def analysisMediaHtmlByxpath(self, html,q):
+    def analysisMediaHtmlByxpath(self, html, q):
         '''
         根据html对象与xpath解析数据
         html:<object>
@@ -43,8 +43,6 @@ class Onejav(CensoredSpider):
             'm_category': '',
             'm_actor': ''
         }
-
-        
 
         title = q.upper()
         media.update({'m_title': title})

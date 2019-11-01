@@ -17,7 +17,7 @@ class ConfigManager():
         item = {
             'html_xpath': {}
         }
-        print (u'读取 %s Xpath json数据' % website_name)
+        print(u'读取 %s Xpath json数据' % website_name)
         jsondata = io.open('./app/spider/%s.json' %
                            website_name, encoding='utf-8').read()
         data = json.loads(jsondata)
@@ -40,20 +40,20 @@ class ConfigManager():
 
         item.update({
             'html_xpath': {
-                    'pageurl':pageurl_xpath,
-                    'm_id': id_xpath,
-                    'm_number': number_xpath,
-                    'm_title': title_xpath,
-                    'm_poster': poster_xpath,
-                    'm_summary': summary_xpath,
-                    'm_studio': studio_xpath,
-                    'm_directors': directors_xpath,
-                    'm_collections': collections_xpath,
-                    'm_year': year_xpath,
-                    'm_originallyAvailableAt': originallyAvailableAt_xpath,
-                    'm_type': type_xpath,
-                    'm_actor': actor_xpath
-                    }
+                'pageurl': pageurl_xpath,
+                'm_id': id_xpath,
+                'm_number': number_xpath,
+                'm_title': title_xpath,
+                'm_poster': poster_xpath,
+                'm_summary': summary_xpath,
+                'm_studio': studio_xpath,
+                'm_directors': directors_xpath,
+                'm_collections': collections_xpath,
+                'm_year': year_xpath,
+                'm_originallyAvailableAt': originallyAvailableAt_xpath,
+                'm_type': type_xpath,
+                'm_actor': actor_xpath
+            }
         })
 
         return item

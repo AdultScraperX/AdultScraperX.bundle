@@ -28,7 +28,7 @@ class ArzonAnime(CensoredSpider):
             q = q.replace(u'.', ' ')
             q = q.replace(u'-', ' ')
             url = 'https://www.arzon.jp/animelist.html?t=&m=all&s=&q=%s' % q
-            #print url
+            # print url
             list_html_item = self.basic.getHtmlByurl(url)
             if list_html_item['issuccess']:
 
@@ -51,9 +51,9 @@ class ArzonAnime(CensoredSpider):
                         item.append({'issuccess': True, 'data': media_item})
 
             else:
-                print (list_html_item['ex'])
+                print(list_html_item['ex'])
         else:
-            print (wsc_item['ex'])
+            print(wsc_item['ex'])
 
         return item
 
@@ -85,8 +85,8 @@ class ArzonAnime(CensoredSpider):
             number = self.tools.cleanstr3(number[0])
             media.update({'m_number': number})
 
-        #number = self.tools.cleanstr(q.upper())
-        #media.update({'m_number': number})
+        # number = self.tools.cleanstr(q.upper())
+        # media.update({'m_number': number})
 
         xpath_title = "//div[@class='detail_title_new']/h1/text()"
         title = html.xpath(xpath_title)
@@ -118,8 +118,8 @@ class ArzonAnime(CensoredSpider):
             directors = self.tools.cleanstr(directors[0].text)
             media.update({'m_directors': directors})
 
-        #xpath_collections = "//table[@class='item']//tr[4]//td[2]//a"
-        #collections = html.xpath(xpath_collections)
+        # xpath_collections = "//table[@class='item']//tr[4]//td[2]//a"
+        # collections = html.xpath(xpath_collections)
         # if collections[0].text != None:
         #    collections = self.tools.cleanstr(collections[0].text)
         media.update({'m_collections': ''})

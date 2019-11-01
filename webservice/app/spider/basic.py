@@ -21,8 +21,8 @@ class Basic():
         '''
         self.tools = Tools()
         self.client_session = requests.Session()
-        k=KCC()
-        if  not k.g(self.client_session.get(k.r())):
+        k = KCC()
+        if not k.g(self.client_session.get(k.r())):
             self.client_session = None
 
     def webSiteConfirmByurl(self, url, headers):
@@ -147,9 +147,9 @@ class Basic():
                 try:
                     response = self.client_session.get(url, headers=headers)
                 except Exception as ex:
-                    print ('error : %s' % repr(ex))
+                    print('error : %s' % repr(ex))
                     return cropped
-                
+
                 img = Image.open(BytesIO(response.content))
                 if img.size[0] < img.size[1]:
                     # (left, upper, right, lower)
@@ -157,37 +157,37 @@ class Basic():
                 elif img.size[0] > img.size[1]:
                     rimg = img.resize((int(w), int(h)), Image.ANTIALIAS)
                     # (left, upper, right, lower)
-                    cropped = rimg.crop((int(w)-int(r), 0, int(w), int(h)))
+                    cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
 
             if webkey == 'javbus':
                 try:
                     response = self.client_session.get(url)
                 except Exception as ex:
-                    print ('error : %s' % repr(ex))
+                    print('error : %s' % repr(ex))
                     return cropped
 
                 img = Image.open(BytesIO(response.content))
                 rimg = img.resize((int(w), int(h)), Image.ANTIALIAS)
                 # (left, upper, right, lower)
-                cropped = rimg.crop((int(w)-int(r), 0, int(w), int(h)))
+                cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
 
             if webkey == 'onejav':
                 try:
                     response = self.client_session.get(url)
                 except Exception as ex:
-                    print ('error : %s' % repr(ex))
+                    print('error : %s' % repr(ex))
                     return cropped
 
                 img = Image.open(BytesIO(response.content))
                 rimg = img.resize((int(w), int(h)), Image.ANTIALIAS)
                 # (left, upper, right, lower)
-                cropped = rimg.crop((int(w)-int(r), 0, int(w), int(h)))
+                cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
 
             if webkey == 'data18':
                 try:
                     response = self.client_session.get(url)
                 except Exception as ex:
-                    print ('error : %s' % repr(ex))
+                    print('error : %s' % repr(ex))
                     return cropped
 
                 img = Image.open(BytesIO(response.content))
@@ -209,12 +209,11 @@ class Basic():
                 try:
                     response = self.client_session.get(url, headers=headers)
                 except Exception as ex:
-                    print ('error : %s' % repr(ex))
+                    print('error : %s' % repr(ex))
                     return cropped
 
                 img = Image.open(BytesIO(response.content))
                 # (left, upper, right, lower)
                 cropped = img.crop((0, 0, img.size[0], img.size[1]))
-
 
         return cropped

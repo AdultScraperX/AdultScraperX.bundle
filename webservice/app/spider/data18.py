@@ -32,7 +32,7 @@ class Data18(BasicSpider):
                     item.append({'issuccess': True, 'data': media_item})
 
         else:
-            print (list_html_item['ex'])
+            print(list_html_item['ex'])
 
         return item
 
@@ -123,12 +123,12 @@ class Data18(BasicSpider):
 
         actor = {}
         xpath_actor_name = "//div[@class='video-performer']/a/span[@class='video-performer-name overlay']/span[@class='overlay-inner']/text()"
-        #xpath_actor_url = "//div[@class='video-performer']/a/img/@style"
-        actor_name = html.xpath(xpath_actor_name)        
-        #actor_url = html.xpath(xpath_actor_url)
+        # xpath_actor_url = "//div[@class='video-performer']/a/img/@style"
+        actor_name = html.xpath(xpath_actor_name)
+        # actor_url = html.xpath(xpath_actor_url)
         if len(actor_name) > 0:
             for i, actorname in enumerate(actor_name):
-                #actorimageurl = actor_url[i].replace('background-image:url(', '').replace(');', '')
+                # actorimageurl = actor_url[i].replace('background-image:url(', '').replace(');', '')
                 '''
                 actor.update({self.tools.cleanstr2(
                     actorname): actorimageurl})

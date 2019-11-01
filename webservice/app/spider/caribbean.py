@@ -2,6 +2,7 @@
 
 from app.spider.censoredSpider import CensoredSpider
 
+
 class Caribbean(CensoredSpider):
 
     def search(self, q):
@@ -18,7 +19,7 @@ class Caribbean(CensoredSpider):
                 html_item['html'], q)
             item.append({'issuccess': True, 'data': media_item})
         else:
-            pass #print repr(html_item['ex'])
+            pass  # print repr(html_item['ex'])
 
         return item
 
@@ -53,7 +54,7 @@ class Caribbean(CensoredSpider):
             title = self.tools.cleantitlenumber(
                 self.tools.cleanstr(title[0]), number)
             media.update({'m_title': title})
-            
+
         xpath_summary = "//div[@class='movie-comment']/p/text()"
         summary = html.xpath(xpath_summary)
         if len(summary) > 0:
@@ -102,12 +103,12 @@ class Caribbean(CensoredSpider):
 
         actor = {}
         xpath_actor_name = "//div[@class='movie-info']/dl[1]/dd/a/span/text()"
-        #xpath_actor_url = "//div[@class='video-performer']/a/img/@style"
-        actor_name = html.xpath(xpath_actor_name)        
-        #actor_url = html.xpath(xpath_actor_url)
+        # xpath_actor_url = "//div[@class='video-performer']/a/img/@style"
+        actor_name = html.xpath(xpath_actor_name)
+        # actor_url = html.xpath(xpath_actor_url)
         if len(actor_name) > 0:
             for i, actorname in enumerate(actor_name):
-                #actorimageurl = actor_url[i].replace('background-image:url(', '').replace(');', '')
+                # actorimageurl = actor_url[i].replace('background-image:url(', '').replace(');', '')
                 '''
                 actor.update({self.tools.cleanstr2(
                     actorname): actorimageurl})

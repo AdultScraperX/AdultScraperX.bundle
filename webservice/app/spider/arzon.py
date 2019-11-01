@@ -44,17 +44,17 @@ class Arzon(CensoredSpider):
                         html_item = self.basic.getHtmlByurl(page_url)
                         '解析html对象'
                         media_item = self.analysisMediaHtmlByxpath(
-                            html_item['html'],q)
+                            html_item['html'], q)
                         item.append({'issuccess': True, 'data': media_item})
 
             else:
-                print (list_html_item['ex'])
+                print(list_html_item['ex'])
         else:
-            print (wsc_item['ex'])
+            print(wsc_item['ex'])
 
         return item
 
-    def analysisMediaHtmlByxpath(self, html,q):
+    def analysisMediaHtmlByxpath(self, html, q):
         '''
         根据html对象与xpath解析数据
         html:<object>

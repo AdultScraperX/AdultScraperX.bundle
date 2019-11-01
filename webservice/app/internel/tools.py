@@ -8,18 +8,18 @@ class Tools():
     工具类
     '''
 
-    def dict_sorted(self,dicts,orderby):
+    def dict_sorted(self, dicts, orderby):
         '''
         字典排序
         <dicts>:dict
         <orderby>:asc/desc
         <return>:dict
         '''
-        if orderby=='asc':
-            #正序
+        if orderby == 'asc':
+            # 正序
             return sorted(dicts.items(), lambda x, y: cmp(x[1], y[1]))
-        elif orderby=='desc':
-            #倒序
+        elif orderby == 'desc':
+            # 倒序
             return sorted(dicts.items(), lambda x, y: cmp(x[1], y[1]), reverse=True)
 
     def statusCodeConvert(self, code):
@@ -53,7 +53,7 @@ class Tools():
 
     def cleanstr2(self, st):
         st = st.replace('\t', '')
-        st = st.replace('\r', '')        
+        st = st.replace('\r', '')
         st = st.replace('\n', '')
         st = st.replace('\r\n', '')
         st = st.replace(u'\xa0', '')

@@ -138,7 +138,7 @@ class AdultScraperSEAgent(Agent.Movies):
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
                     '%s:%s/manual/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
+                        Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
                     timeout=timeout).content
                 base64jsondata = base64.b64decode(jsondata)
                 Log(base64jsondata)
@@ -194,7 +194,7 @@ class AdultScraperSEAgent(Agent.Movies):
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
                     '%s:%s/auto/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
                     timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 if dict_data['issuccess'] == 'true':

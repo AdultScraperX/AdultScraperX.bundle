@@ -1,4 +1,6 @@
-class CensoredFormatter():
+from app.formatter.basicFormatter import BasicFormater
+
+class CensoredFormatter(BasicFormater):
 
     def format(code):
         if code[-4] != "-":

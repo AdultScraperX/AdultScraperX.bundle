@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
-import sys
-import requests  # 请求库
-import urllib
-import ssl
-
-import re
-from PIL import Image
-from io import BytesIO
-from lxml import etree  # Xpath包
-from app.internel.tools import Tools
-from app.spider.kcc import KCC
 import base64
 import json
+from io import BytesIO
+
+import requests  # 请求库
+from PIL import Image
+from app.internel.tools import Tools
+from app.spider.kcc import KCC
+from lxml import etree  # Xpath包
 
 
 class Basic():

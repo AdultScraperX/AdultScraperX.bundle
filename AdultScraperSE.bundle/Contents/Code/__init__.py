@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import re
-import os
 import base64
 import json
+import re
 from datetime import datetime
 
 PREFIX = '/video/libraryupdater'

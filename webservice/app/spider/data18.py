@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from app.spider.basic import Basic
-from app.internel.tools import Tools
-from app.internel.config import ConfigManager
-import json
-
 from app.spider.basiceSpider import BasicSpider
 
 

@@ -1,26 +1,14 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import base64
+import json
 import re
-from urllib import parse
+import sys
 
 from app.spider.basic import Basic
-from app.spider.data18 import Data18
-from app.spider.onejav import Onejav
-from app.spider.javbus import Javbus
-from app.spider.arzon_anime import ArzonAnime
-from app.spider.arzon import Arzon
-
-import base64
-import requests as req
 from flask import Flask
 from flask import render_template
 from flask import send_file
-import json
-from PIL import Image
-from io import BytesIO
-import io
-
-import sys
 
 if sys.version.find('2', 0, 1) == 0:
     try:

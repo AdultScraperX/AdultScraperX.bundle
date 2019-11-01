@@ -263,9 +263,8 @@
   };
 }));
 
-;(function($, window, document, undefined) {
-
-	var pluginName = 'stellar',
+(function ($, window, document, undefined) {
+    var pluginName = 'stellar',
 		defaults = {
 			scrollProperty: 'scroll',
 			positionProperty: 'position',

@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-import base64
-import string
 import re
-import sys
-from urllib import parse
+
 import config as CONFIG
 
 for template in CONFIG.SOURCE_LIST['censored']:

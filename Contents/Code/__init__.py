@@ -138,7 +138,7 @@ class AdultScraperSEAgent(Agent.Movies):
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
                     '%s:%s/manual/%s/%s/%s' % (
-                        Prefs['Service_IP'], Prefs['Service_Port'], lang, queryname, Prefs['Service_Token']),
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
                     timeout=timeout).content
                 base64jsondata = base64.b64decode(jsondata)
                 Log(base64jsondata)
@@ -222,129 +222,153 @@ class AdultScraperSEAgent(Agent.Movies):
                             MetadataSearchResult(**new_result))
 
     def update(self, metadata, media, lang):
-        timeout = 300
-        metadata_list = base64.b64decode(metadata.id).split('|')
-        m_id = metadata_list[0]
-        manual = metadata_list[1]
-        webkey = metadata_list[2]
-        data = metadata_list[3]
-        data = json.loads(data)
 
-        '在标语处显示来源元数据站点'
-        metadata.tagline = webkey
+        dirTagLine = None
+        mediaPath = String.Unquote(media.filename, usePlus=False)
+        mediaPathSplitItems = mediaPath.split('/')
+        for item in mediaPathSplitItems:
+            # 正则判断是否匹配 有结果就给出
+            tmp = re.findall(Prefs['Dir_M'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'censored'
+                break
+            tmp = re.findall(Prefs['Dir_NM'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'uncensored'
+                break
+            tmp = re.findall(Prefs['Dir_A'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'animation'
+                break
+            tmp = re.findall(Prefs['Dir_E'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'europe'
+                break
+        Log("dirTagLine======" + dirTagLine)
+        if dirTagLine != None:
 
-        for i, media_item in enumerate(data):
-            if media_item == 'm_number':
-                number = data.get(media_item)
-                if lang == 'en':
-                    '欧美标题'
-                    metadata.title = data['m_title']
+            timeout = 300
+            metadata_list = base64.b64decode(metadata.id).split('|')
+            m_id = metadata_list[0]
+            manual = metadata_list[1]
+            webkey = metadata_list[2]
+            data = metadata_list[3]
+            data = json.loads(data)
 
-                elif lang == 'ja':
-                    '日本标题'
-                    if number == '':
+            '在标语处显示来源元数据站点'
+            metadata.tagline = webkey
+
+            for i, media_item in enumerate(data):
+                if media_item == 'm_number':
+                    number = data.get(media_item)
+                    if dirTagLine == Prefs['Dir_E']:
+                        '欧美标题'
                         metadata.title = data['m_title']
                     else:
-                        if webkey == 'ArzonAnime':
-                            if Prefs['Title_jp_anime'] == '番号':
-                                metadata.title = number
-                            elif Prefs['Title_jp_anime'] == '标题':
-                                metadata.title = data['m_title']
-                            elif Prefs['Title_jp_anime'] == '番号,标题':
-                                metadata.title = '%s %s' % (
-                                    number, data['m_title'])
+                        '日本标题'
+                        if number == '':
+                            metadata.title = data['m_title']
                         else:
-                            if Prefs['Title_jp'] == '番号':
-                                metadata.title = number
-                            elif Prefs['Title_jp'] == '标题':
-                                metadata.title = data['m_title']
-                            elif Prefs['Title_jp'] == '番号,标题':
-                                metadata.title = '%s %s' % (
-                                    number, data['m_title'])
+                            if webkey == 'ArzonAnime':
+                                if Prefs['Title_jp_anime'] == '番号':
+                                    metadata.title = number
+                                elif Prefs['Title_jp_anime'] == '标题':
+                                    metadata.title = data['m_title']
+                                elif Prefs['Title_jp_anime'] == '番号,标题':
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
+                            else:
+                                if Prefs['Title_jp'] == '番号':
+                                    metadata.title = number
+                                elif Prefs['Title_jp'] == '标题':
+                                    metadata.title = data['m_title']
+                                elif Prefs['Title_jp'] == '番号,标题':
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
 
-            if media_item == 'm_title':
-                metadata.original_title = data.get(media_item)
+                if media_item == 'm_title':
+                    metadata.original_title = data.get(media_item)
 
-            if media_item == 'm_summary':
-                metadata.summary = data.get(media_item)
+                if media_item == 'm_summary':
+                    metadata.summary = data.get(media_item)
 
-            if media_item == 'm_studio':
-                metadata.studio = data.get(media_item)
+                if media_item == 'm_studio':
+                    metadata.studio = data.get(media_item)
 
-            if media_item == 'm_collections':
-                metadata.collections.add(data.get(media_item))
+                if media_item == 'm_collections':
+                    metadata.collections.add(data.get(media_item))
 
-            if media_item == 'm_originallyAvailableAt':
-                try:
-                    date_object = datetime.strptime(
-                        data.get(media_item), r'%Y-%m-%d')
-                    metadata.originally_available_at = date_object
-                except Exception as ex:
-                    Log(ex)
+                if media_item == 'm_originallyAvailableAt':
+                    try:
+                        date_object = datetime.strptime(
+                            data.get(media_item), r'%Y-%m-%d')
+                        metadata.originally_available_at = date_object
+                    except Exception as ex:
+                        Log(ex)
 
-            if media_item == 'm_year':
-                try:
-                    metadata.year = metadata.originally_available_at.year
-                except Exception as ex:
-                    Log(ex)
+                if media_item == 'm_year':
+                    try:
+                        metadata.year = metadata.originally_available_at.year
+                    except Exception as ex:
+                        Log(ex)
 
-            if media_item == 'm_directors':
-                metadata.directors.clear()
-                metadata.directors.new().name = data.get(media_item)
+                if media_item == 'm_directors':
+                    metadata.directors.clear()
+                    metadata.directors.new().name = data.get(media_item)
 
-            if media_item == 'm_category':
-                metadata.genres.clear()
-                genres_list = data.get(media_item).split(',')
-                for genres_name in genres_list:
-                    metadata.genres.add(genres_name)
+                if media_item == 'm_category':
+                    metadata.genres.clear()
+                    genres_list = data.get(media_item).split(',')
+                    for genres_name in genres_list:
+                        metadata.genres.add(genres_name)
 
-            if media_item == 'm_poster':
-                poster_url = data.get(media_item)
-                r = Prefs['Poster_Cutting_X']
-                w = Prefs['Poster_Cutting_W']
-                h = Prefs['Poster_Cutting_H']
+                if media_item == 'm_poster':
+                    poster_url = data.get(media_item)
+                    r = Prefs['Poster_Cutting_X']
+                    w = Prefs['Poster_Cutting_W']
+                    h = Prefs['Poster_Cutting_H']
 
-                poster_data = {
-                    'mode': 'poster',
-                    'url': poster_url,
-                    'r': r,
-                    'w': w,
-                    'h': h,
-                    'webkey': webkey.lower()
-                }
-                poster_data_json = json.dumps(poster_data)
-                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))
-                poster = None
-                try:
-                    poster = HTTP.Request(url, timeout=timeout).content
-                except Exception as ex:
-                    Log('%s:%s' % (ex, url))
-                if not poster == None:
-                    metadata.posters[url] = Proxy.Media(poster)
+                    poster_data = {
+                        'mode': 'poster',
+                        'url': poster_url,
+                        'r': r,
+                        'w': w,
+                        'h': h,
+                        'webkey': webkey.lower()
+                    }
+                    poster_data_json = json.dumps(poster_data)
+                    url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                            Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                    poster = None
+                    try:
+                        poster = HTTP.Request(url, timeout=timeout).content
+                    except Exception as ex:
+                        Log('%s:%s' % (ex, url))
+                    if not poster == None:
+                        metadata.posters[url] = Proxy.Media(poster)
 
-            if media_item == 'm_actor':
-                metadata.roles.clear()
-                actors_list = data.get(media_item)
-                if actors_list != '':
-                    for key in actors_list:
-                        role = metadata.roles.new()
-                        role.name = key
-                        imgurl = actors_list.get(key)
-                        if imgurl != '':
-                            art_data = {
-                                'mode': 'art',
-                                'url': imgurl,
-                                'r': 0,
-                                'w': 125,
-                                'h': 125,
-                                'webkey': webkey.lower()
-                            }
-                            art_data_json = json.dumps(art_data)
-                            url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                                    Prefs['Service_Port'], base64.b64encode(art_data_json))
-                            Log('art-url:%s' % url)
-                            role.photo = url
+                if media_item == 'm_actor':
+                    metadata.roles.clear()
+                    actors_list = data.get(media_item)
+                    if actors_list != '':
+                        for key in actors_list:
+                            role = metadata.roles.new()
+                            role.name = key
+                            imgurl = actors_list.get(key)
+                            if imgurl != '':
+                                art_data = {
+                                    'mode': 'art',
+                                    'url': imgurl,
+                                    'r': 0,
+                                    'w': 125,
+                                    'h': 125,
+                                    'webkey': webkey.lower()
+                                }
+                                art_data_json = json.dumps(art_data)
+                                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
+                                Log('art-url:%s' % url)
+                                role.photo = url
 
     def querynameVoleClean(self, st):
         st = st.lower().split('-')

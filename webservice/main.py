@@ -60,6 +60,9 @@ def manual(dirTagLine, q, token):
             return 'T-Error!'
     else:
         return 'T-Error!'
+        
+    q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
+
     items = []
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:

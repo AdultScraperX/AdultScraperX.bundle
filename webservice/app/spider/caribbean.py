@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 
 from app.spider.censoredSpider import CensoredSpider
 
@@ -6,6 +7,7 @@ from app.spider.censoredSpider import CensoredSpider
 class Caribbean(CensoredSpider):
 
     def search(self, q):
+
         '''
         执行查询函数
         '''
@@ -61,11 +63,11 @@ class Caribbean(CensoredSpider):
             summary = summary[0]
             media.update({'m_summary': summary})
 
-        xpath_poster = "//div[@id='bigmovie']/div[@id='player_outer']/img/@src"
-        poster = html.xpath(xpath_poster)
-        if len(poster) > 0:
-            poster = self.tools.cleanstr(poster[0])
-            media.update({'m_poster': poster})
+        # xpath_poster = "//img/@src"
+        # poster = html.xpath(xpath_poster)        
+        # if len(poster) > 0:
+            #poster = self.tools.cleanstr(poster[0])
+        media.update({'m_poster': '/moviepages/%s/images/l_l.jpg' % number})
 
         # xpath_studio = "//div[@class='col-md-3 info']/p[5]/a/text()"
         # studio = html.xpath(xpath_studio)

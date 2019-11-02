@@ -87,7 +87,7 @@ def Update(url, method):
 
 class AdultScraperSEAgent(Agent.Movies):
     name = NAME
-    #languages = [Locale.Language.English, Locale.Language.Japanese]
+    languages = [Locale.Language.English, Locale.Language.Japanese]
     primary_provider = True
     accepts_from = [
         'com.plexapp.agents.localmedia',
@@ -105,9 +105,7 @@ class AdultScraperSEAgent(Agent.Movies):
 
         # 获取path
         dirTagLine = None
-        filePath = media.items[0].parts[0].file
-        mediaPath = String.Unquote(filePath, usePlus=False)
-        Log('filePath============%s' % filePath)
+        mediaPath = String.Unquote(media.filename, usePlus=False)
         mediaPathSplitItems = mediaPath.split('/')
         for item in mediaPathSplitItems:
             # 正则判断是否匹配 有结果就给出
@@ -131,21 +129,17 @@ class AdultScraperSEAgent(Agent.Movies):
         if dirTagLine != None:
 
             timeout = 300
-            queryname = base64.b64encode(media.name).replace(
-                '/', '[s]')
+            queryname = base64.b64encode(media.name).replace('/', '[s]')
             Log("filename========" + media.name)
             Log("queryname========" + queryname)
 
             if manual:
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                try:
-                    jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s' % (
-                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']), timeout=timeout).content
-                except Exception as ex:
-                    if re.findall('Errno 111', ex) > 0:
-                        Log.Error('请检查服务端连接状态')
-
+                jsondata = HTTP.Request(
+                    '%s:%s/manual/%s/%s/%s' % (
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                    timeout=timeout).content
                 base64jsondata = base64.b64decode(jsondata)
                 Log(base64jsondata)
                 dict_data_list = json.loads(base64jsondata)
@@ -198,8 +192,10 @@ class AdultScraperSEAgent(Agent.Movies):
             else:
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']), timeout=timeout).content
+                jsondata = HTTP.Request(
+                    '%s:%s/auto/%s/%s/%s' % (
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                    timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
@@ -222,7 +218,8 @@ class AdultScraperSEAgent(Agent.Movies):
                         score = 100
                         new_result = dict(
                             id=id, name=name, year='', score=score, lang=lang)
-                        results.Append(MetadataSearchResult(**new_result))
+                        results.Append(
+                            MetadataSearchResult(**new_result))
 
     def update(self, metadata, media, lang):
 

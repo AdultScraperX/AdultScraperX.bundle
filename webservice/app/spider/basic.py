@@ -194,6 +194,18 @@ class Basic():
                 # (left, upper, right, lower)
                 cropped = img.crop((0, 0, img.size[0], img.size[1]))
 
+            if webkey == 'caribbean':
+                try:
+                    response = self.client_session.get(url)
+                except Exception as ex:
+                    print('error : %s' % repr(ex))
+                    return cropped
+
+                img = Image.open(BytesIO(response.content))
+                # (left, upper, right, lower)
+                cropped = img.crop((0, 0, img.size[0], img.size[1]))
+
+
         if mode == 'art':
             if webkey == 'arzon':
                 headers = {

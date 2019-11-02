@@ -67,7 +67,7 @@ class Caribbean(CensoredSpider):
         # poster = html.xpath(xpath_poster)        
         # if len(poster) > 0:
             #poster = self.tools.cleanstr(poster[0])
-        media.update({'m_poster': '/moviepages/%s/images/l_l.jpg' % number})
+        media.update({'m_poster': 'https://cn.caribbeancom.com/moviepages/%s/images/l_l.jpg' % number})
 
         # xpath_studio = "//div[@class='col-md-3 info']/p[5]/a/text()"
         # studio = html.xpath(xpath_studio)

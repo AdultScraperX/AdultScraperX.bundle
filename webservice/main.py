@@ -67,7 +67,7 @@ def manual(dirTagLine, q, token):
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:
             items = search(template['webList'], q, False)
-    jsondata = json.dumps(items)
+    jsondata = bytes(json.dumps(items), encoding="utf8")
     base64jsondata = base64.b64encode(jsondata)
     return base64jsondata
 
@@ -137,7 +137,7 @@ def search(webList, q, autoFlag):
             if item['issuccess']:
                 result.update({'issuccess': 'true'})
                 result['json_data'].append({webSite.getName(): item['data']})
-                print("match=" + q)
+                print("match=" + q+" "+webSite.getName())
                 if autoFlag:
                     return result
     return result

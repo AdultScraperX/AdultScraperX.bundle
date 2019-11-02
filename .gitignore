@@ -1,3 +1,4 @@
 AdultScraperSE.bundle/.idea
 webservice/.idea
-./.idea
+.idea
+*.pyc

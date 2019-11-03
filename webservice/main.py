@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import config as CONFIG
 import base64
 import json
 import re
@@ -20,7 +21,6 @@ else:
     from io import BytesIO
 
 # 必填且与plex对应
-import config as CONFIG
 
 app = Flask(__name__)
 
@@ -60,16 +60,26 @@ def manual(dirTagLine, q, token):
             return 'T-Error!'
     else:
         return 'T-Error!'
-        
+
     q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
+    print(u'\n\n======开始请求======')
+    print(u'模式：手动')
+    print(u'文件名：%s' % q)
+    print(u'目录标记：%s' % dirTagLine)
 
     items = []
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:
             items = search(template['webList'], q, False)
-    jsondata = bytes(json.dumps(items), encoding="utf8")
-    base64jsondata = base64.b64encode(jsondata)
-    return base64jsondata
+            if items.get("issuccess") == "true":
+                print("匹配数据结果：success")
+                print(u'======结束请求======')
+                print(u'======返回json======')
+                return json.dumps(items)
+
+    print(u'======结束请求======')
+    print(u'======返回json======')
+    return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
 
 
 @app.route('/auto/<dirTagLine>/<q>/<token>')
@@ -84,8 +94,10 @@ def auto(dirTagLine, q, token):
         return 'T-Error!'
 
     q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
-    print("filename=" + q)
-    print("dirTagLine=" + dirTagLine)
+    print(u'\n\n======开始请求======')
+    print(u'模式：自动')
+    print(u'文件名：%s' % q)
+    print(u'目录标记：%s' % dirTagLine)
 
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:
@@ -95,11 +107,16 @@ def auto(dirTagLine, q, token):
                 break
             # 对正则匹配结果进行搜索
             for code in codeList:
-                items = search(template['webList'], template['formatter'].format(code), True)
+                items = search(template['webList'],
+                               template['formatter'].format(code), True)
                 if items.get("issuccess") == "true":
-                    print("success")
+                    print("匹配数据结果：success")
+                    print(u'======结束请求======')
+                    print(u'======返回json======')
                     return json.dumps(items)
 
+    print(u'======结束请求======')
+    print(u'======返回json======')
     return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
 
 
@@ -124,7 +141,7 @@ def search(webList, q, autoFlag):
         }
     """
 
-    print("code=" + q)
+    print("格式化后的查询关键字：%s" % q)
     result = {
         'issuccess': 'false',
         'json_data': [],
@@ -137,7 +154,7 @@ def search(webList, q, autoFlag):
             if item['issuccess']:
                 result.update({'issuccess': 'true'})
                 result['json_data'].append({webSite.getName(): item['data']})
-                print("match=" + q+" "+webSite.getName())
+                print("匹配关键字：%s  元数据来源站点：%s" % (q, webSite.getName()))
                 if autoFlag:
                     return result
     return result

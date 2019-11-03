@@ -12,7 +12,6 @@ class Caribbean(CensoredSpider):
         执行查询函数
         '''
         item = []
-
         '获取查询结果页html对象'
         url = 'https://cn.caribbeancom.com/moviepages/%s/index.html' % q
         html_item = self.basic.getHtmlByurl(url)

@@ -32,6 +32,8 @@ class Tools():
             return u'301:服务器重定向'
         elif code == 302:
             return u'302:服务器重定向'
+        elif code == 400:
+            return u'400:请求无效'
         elif code == 403:
             return u'403:服务器拒绝请求'
         elif code == 404:

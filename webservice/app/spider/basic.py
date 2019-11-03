@@ -60,7 +60,7 @@ class Basic():
         html = None
         item = {'issuccess': False, 'html': None, 'ex': None}
         try:
-            r = self.client_session.get(url)
+            r = self.client_session.get(url,allow_redirects=False)
         except requests.RequestException as e:
             item.update({'issuccess': False, 'html': None, 'ex': e})
             return item
@@ -79,6 +79,7 @@ class Basic():
             item.update({'issuccess': True, 'html': html, 'ex': None})
         else:
             scc = self.tools.statusCodeConvert(r.status_code)
+            print('匹配数据结果：%s' % scc)
             item.update({'issuccess': False, 'html': None,
                          'execpt': scc})
         return item
@@ -201,10 +202,12 @@ class Basic():
                     print('error : %s' % repr(ex))
                     return cropped
 
-                img = Image.open(BytesIO(response.content))
-                # (left, upper, right, lower)
-                cropped = img.crop((0, 0, img.size[0], img.size[1]))
-
+                if response.status_code == 200:
+                    img = Image.open(BytesIO(response.content))
+                    # (left, upper, right, lower)
+                    cropped = img.crop((0, 0, img.size[0], img.size[1]))
+                else:
+                    pass
 
         if mode == 'art':
             if webkey == 'arzon':

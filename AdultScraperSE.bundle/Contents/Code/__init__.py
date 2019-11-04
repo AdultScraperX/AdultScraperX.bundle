@@ -95,11 +95,12 @@ class AdultScraperSEAgent(Agent.Movies):
 
     def search(self, results, media, lang, manual):
 
+        Log('======开始查询======')
         # 获取path
         dirTagLine = None
         filePath = media.items[0].parts[0].file
         mediaPath = String.Unquote(filePath, usePlus=False)
-        Log('filePath============%s' % filePath)
+        Log('本地文件路径：%s' % filePath)
         mediaPathSplitItems = mediaPath.split('/')
         for item in mediaPathSplitItems:
             # 正则判断是否匹配 有结果就给出
@@ -119,29 +120,30 @@ class AdultScraperSEAgent(Agent.Movies):
             if len(tmp) == 1:
                 dirTagLine = 'europe'
                 break
-        Log("dirTagLine======" + dirTagLine)
+        Log("本地文件判别类型标记：%s" % dirTagLine)
         if dirTagLine != None:
 
             timeout = 300
             queryname = base64.b64encode(media.name).replace('/', '[s]')
-            Log("filename========" + media.name)
-            Log("queryname========" + queryname)
+            Log('plex输出的关键字：%s' % media.name)
+            Log('base64后的关键字：%s' % queryname)
 
             if manual:
+                Log('执行模式：手动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
-                    '%s:%s/manual/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname,Prefs['Service_Token']), timeout=timeout).content
+                    '%s:%s/manual/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']), timeout=timeout).content
                 # base64jsondata = base64.b64decode(jsondata)
                 # Log(base64jsondata)
                 # dict_data_list = json.loads(base64jsondata)
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
                     json_data_list = dict_data_list['json_data']
-
                     if Prefs['Orderby'] == '默认':
-                        pass
+                        Log('结果输出排序方式：默认')
                     elif Prefs['Orderby'] == '反序':
+                        Log('结果输出排序方式：反序')
                         json_data_list.reverse()
 
                     for json_data in json_data_list:
@@ -183,7 +185,11 @@ class AdultScraperSEAgent(Agent.Movies):
                                 id=id, name=name, year='', score=score, lang=lang, thumb=thumb)
                             results.Append(
                                 MetadataSearchResult(**new_result))
+                    Log('匹配数据结果：success')
+                else:
+                    Log('匹配数据结果：无')
             else:
+                Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s' % (
@@ -212,17 +218,28 @@ class AdultScraperSEAgent(Agent.Movies):
                         new_result = dict(
                             id=id, name=name, year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
+                        Log('匹配数据结果：success')
+                    else:
+                        Log('匹配数据结果：无')
+
+        Log('======结束查询======')
 
     def update(self, metadata, media, lang):
 
+        Log('======开始执行更新媒体信息======')
         timeout = 300
         metadata_list = base64.b64decode(metadata.id).split('|')
         m_id = metadata_list[0]
+        Log('解析base64传递数据-番号：%s' % m_id)
         manual = metadata_list[1]
+        Log('解析base64传递数据-执行模式：%s' % manual)
         webkey = metadata_list[2]
+        Log('解析base64传递数据-元数据站点：%s' % webkey)
         data = metadata_list[3]
+        Log('解析base64传递数据-更新数据：%s' % data)
         data = json.loads(data)
         dirTagLine = metadata_list[4]
+        Log('解析base64传递数据-文件类型判别标记：%s' % dirTagLine)
 
         '在标语处显示来源元数据站点'
         metadata.tagline = webkey
@@ -231,10 +248,10 @@ class AdultScraperSEAgent(Agent.Movies):
             if media_item == 'm_number':
                 number = data.get(media_item)
                 if dirTagLine == 'europe':
-                    '欧美标题'
+                    Log('标题模式：欧美')
                     metadata.title = data['m_title']
                 else:
-                    '日本标题'
+                    Log('标题模式：日本')
                     if number == '':
                         metadata.title = data['m_title']
                     else:
@@ -273,13 +290,13 @@ class AdultScraperSEAgent(Agent.Movies):
                         data.get(media_item), r'%Y-%m-%d')
                     metadata.originally_available_at = date_object
                 except Exception as ex:
-                    Log(ex)
+                    Log('捕获异常：%s' % ex)
 
             if media_item == 'm_year':
                 try:
                     metadata.year = metadata.originally_available_at.year
                 except Exception as ex:
-                    Log(ex)
+                    Log('捕获异常：%s' % ex)
 
             if media_item == 'm_directors':
                 metadata.directors.clear()
@@ -307,12 +324,13 @@ class AdultScraperSEAgent(Agent.Movies):
                 }
                 poster_data_json = json.dumps(poster_data)
                 url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))                                        
+                Log('海报：%s' % url)
                 poster = None
                 try:
                     poster = HTTP.Request(url, timeout=timeout).content
                 except Exception as ex:
-                    Log('%s:%s' % (ex, url))
+                    Log('捕获异常：%s:%s' % (ex, url))
                 if not poster == None:
                     metadata.posters[url] = Proxy.Media(poster)
 
@@ -336,8 +354,10 @@ class AdultScraperSEAgent(Agent.Movies):
                             art_data_json = json.dumps(art_data)
                             url = '%s:%s/img/%s' % (Prefs['Service_IP'],
                                                     Prefs['Service_Port'], base64.b64encode(art_data_json))
-                            Log('art-url:%s' % url)
+                            Log('演员头像：%s' % url)
                             role.photo = url
+
+        Log('======结束执行更新媒体信息======')
 
     def querynameVoleClean(self, st):
         st = st.lower().split('-')

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from app.spider.censoredSpider import CensoredSpider
+from app.spider.censore_spider import CensoredSpider
 
 
 class ArzonAnime(CensoredSpider):

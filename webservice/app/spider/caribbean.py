@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 
-from app.spider.censoredSpider import CensoredSpider
+from app.spider.censore_spider import CensoredSpider
 
 
 class Caribbean(CensoredSpider):

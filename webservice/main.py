@@ -76,6 +76,9 @@ def manual(dirTagLine, q, token):
                 print(u'======结束请求======')
                 print(u'======返回json======')
                 return json.dumps(items)
+            else:
+                print("匹配数据结果：未匹配到结果")
+
 
     print(u'======结束请求======')
     print(u'======返回json======')
@@ -102,7 +105,7 @@ def auto(dirTagLine, q, token):
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:
             # 循环模板列表
-            codeList = re.findall(re.compile(template['pattern']), q)
+            codeList = re.findall(re.compile(template['pattern']), q.replace('',''))
             if len(codeList) == 0:
                 break
             # 对正则匹配结果进行搜索
@@ -114,6 +117,8 @@ def auto(dirTagLine, q, token):
                     print(u'======结束请求======')
                     print(u'======返回json======')
                     return json.dumps(items)
+                else:
+                    print("匹配数据结果：未匹配到结果")
 
     print(u'======结束请求======')
     print(u'======返回json======')

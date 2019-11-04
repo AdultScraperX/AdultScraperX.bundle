@@ -1,7 +1,7 @@
 from app.internel.config import ConfigManager
 from app.internel.tools import Tools
 from app.spider.basic import Basic
-from app.spider.basiceSpider import BasicSpider
+from app.spider.basic_spider import BasicSpider
 
 
 class CensoredSpider(BasicSpider):

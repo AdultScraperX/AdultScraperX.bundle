@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from app.spider.basiceSpider import BasicSpider
+from app.spider.basic_spider import BasicSpider
 
 
 class Data18(BasicSpider):

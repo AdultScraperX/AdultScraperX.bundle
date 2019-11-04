@@ -6,7 +6,6 @@ import json
 import re
 import sys
 
-from app.spider.basic import Basic
 from flask import Flask
 from flask import render_template
 from flask import send_file
@@ -36,8 +35,15 @@ def warning():
 
 @app.route("/img/<data>")
 def img(data):
-    image = Basic().pictureProcessing(data)
-    if image != None:
+    data = json.loads(base64.b64decode(data))
+    image = None
+    for sourceList in CONFIG.SOURCE_LIST:
+        for sourceItem in CONFIG.SOURCE_LIST[sourceList]:
+            for spiderClass in sourceItem["webList"]:
+                spider = spiderClass()
+                if spider.getName().lower() == data['webkey'].lower():
+                    image = spider.pictureProcessing(data)
+    if image is not None:
         try:
             img_io = StringIO()
             image.save(img_io, 'PNG')
@@ -50,43 +56,8 @@ def img(data):
         return ''
 
 
-@app.route("/manual/<dirTagLine>/<q>/<token>")
-def manual(dirTagLine, q, token):
-    '''
-    手动查询：返回所有成功的item
-    '''
-    if CONFIG.PLUGIN_TOKEN != '':
-        if token != CONFIG.PLUGIN_TOKEN:
-            return 'T-Error!'
-    else:
-        return 'T-Error!'
-
-    q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
-    print(u'\n\n======开始请求======')
-    print(u'模式：手动')
-    print(u'文件名：%s' % q)
-    print(u'目录标记：%s' % dirTagLine)
-
-    items = []
-    if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
-        for template in CONFIG.SOURCE_LIST[dirTagLine]:
-            items = search(template['webList'], q, False)
-            if items.get("issuccess") == "true":
-                print("匹配数据结果：success")
-                print(u'======结束请求======')
-                print(u'======返回json======')
-                return json.dumps(items)
-            else:
-                print("匹配数据结果：未匹配到结果")
-
-
-    print(u'======结束请求======')
-    print(u'======返回json======')
-    return json.dumps({'issuccess': 'false', 'json_data': [], 'ex': ''})
-
-
-@app.route('/auto/<dirTagLine>/<q>/<token>')
-def auto(dirTagLine, q, token):
+@app.route('/<requestType>/<dirTagLine>/<q>/<token>')
+def auto(requestType, dirTagLine, q, token):
     '''
     自动查询：返回最先成功的item
     '''
@@ -98,20 +69,27 @@ def auto(dirTagLine, q, token):
 
     q = base64.b64decode(q.replace('[s]', '/')).decode("utf-8")
     print(u'\n\n======开始请求======')
-    print(u'模式：自动')
+    if requestType == "manual":
+        print(u'模式：手动')
+        autoFlag = False
+    elif requestType == "auto":
+        print(u'模式：自动')
+        autoFlag = True
+    else:
+        return 'URL-Error!'
     print(u'文件名：%s' % q)
     print(u'目录标记：%s' % dirTagLine)
 
     if dirTagLine != "" or not CONFIG.SOURCE_LIST[dirTagLine]:
         for template in CONFIG.SOURCE_LIST[dirTagLine]:
             # 循环模板列表
-            codeList = re.findall(re.compile(template['pattern']), q.replace('',''))
+            codeList = re.findall(re.compile(template['pattern']), q.replace('', ''))
             if len(codeList) == 0:
                 break
             # 对正则匹配结果进行搜索
             for code in codeList:
                 items = search(template['webList'],
-                               template['formatter'].format(code), True)
+                               template['formatter'].format(code), autoFlag)
                 if items.get("issuccess") == "true":
                     print("匹配数据结果：success")
                     print(u'======结束请求======')

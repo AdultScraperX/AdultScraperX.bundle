@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from app.spider.censore_spider import CensoredSpider
+
+from app.spider.basic_spider import BasicSpider
 
 
-class Javbus(CensoredSpider):
+class Javbus(BasicSpider):
 
     def search(self, q):
         '''
@@ -13,16 +14,16 @@ class Javbus(CensoredSpider):
 
         '获取查询结果列表页html对象'
         url = 'https://www.javbus.com/search/%s' % q
-        list_html_item = self.basic.getHtmlByurl(url)
+        list_html_item = self.getHtmlByurl(url)
         if list_html_item['issuccess']:
 
             xpaths = "//a[@class='movie-box']/@href"
-            page_url_list = self.basic.getitemspage(
+            page_url_list = self.getitemspage(
                 list_html_item['html'], xpaths)
 
             for page_url in page_url_list:
                 if page_url != '':
-                    html_item = self.basic.getHtmlByurl(page_url)
+                    html_item = self.getHtmlByurl(page_url)
                     if html_item['issuccess']:
                         media_item = self.analysisMediaHtmlByxpath(
                             html_item['html'], q)
@@ -126,3 +127,4 @@ class Javbus(CensoredSpider):
             media.update({'m_actor': actor})
 
         return media
+

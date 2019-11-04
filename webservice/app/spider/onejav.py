@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from app.spider.censore_spider import CensoredSpider
+
+from app.spider.basic_spider import BasicSpider
 
 
-class Onejav(CensoredSpider):
+class Onejav(BasicSpider):
 
     def search(self, q):
         '''
@@ -13,7 +14,7 @@ class Onejav(CensoredSpider):
 
         '访问站点'
         url = 'https://onejav.com/torrent/%s' % q.lower().replace('-', '')
-        html_item = self.basic.getHtmlByurl(url)
+        html_item = self.getHtmlByurl(url)
         if html_item['issuccess']:
             media_item = self.analysisMediaHtmlByxpath(html_item['html'], q.upper())
             item.append({'issuccess': True, 'data': media_item})

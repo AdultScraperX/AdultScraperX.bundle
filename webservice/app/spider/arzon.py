@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+from io import BytesIO
 
-from app.spider.censore_spider import CensoredSpider
+from PIL import Image
+
+from app.spider.basic_spider import BasicSpider
 
 
-class Arzon(CensoredSpider):
+class Arzon(BasicSpider):
 
     def search(self, q):
         '''
@@ -21,12 +24,12 @@ class Arzon(CensoredSpider):
             'Connection': 'keep-alive'
         }
         wsc_url = 'https://www.arzon.jp/index.php?action=adult_customer_agecheck&agecheck=1&redirect=https%3A%2F%2Fwww.arzon.jp%2F'
-        wsc_item = self.basic.webSiteConfirmByurl(wsc_url, headers)
+        wsc_item = self.webSiteConfirmByurl(wsc_url, headers)
 
         '获取查询结果列表页html对象'
         if wsc_item['issuccess']:
             url = 'https://www.arzon.jp/itemlist.html?t=&m=all&s=&q=%s' % q
-            list_html_item = self.basic.getHtmlByurl(url)
+            list_html_item = self.getHtmlByurl(url)
             if list_html_item['issuccess']:
 
                 '检测是否是为查询到结果'
@@ -36,12 +39,12 @@ class Arzon(CensoredSpider):
 
                 '获取html对象'
                 xpaths = "//div[@class='pictlist']/dl[@class='hentry']/dd[@class='entry-title']/h2/a/@href"
-                page_url_list = self.basic.getitemspage(
+                page_url_list = self.getitemspage(
                     list_html_item['html'], xpaths)
                 for page_url in page_url_list:
                     if page_url != '':
                         page_url = 'https://www.arzon.jp%s' % page_url
-                        html_item = self.basic.getHtmlByurl(page_url)
+                        html_item = self.getHtmlByurl(page_url)
                         '解析html对象'
                         media_item = self.analysisMediaHtmlByxpath(
                             html_item['html'], q)
@@ -154,7 +157,7 @@ class Arzon(CensoredSpider):
 
         if len(actor_name) > 0:
             for i, actorname in enumerate(actor_name):
-                html = self.basic.getHtmlByurl(
+                html = self.getHtmlByurl(
                     'https://www.arzon.jp%s' % actor_url[i])
                 if html['issuccess']:
                     xpath_actor_image = "//table[@class='p_list1']//img/@src"
@@ -165,3 +168,56 @@ class Arzon(CensoredSpider):
             media.update({'m_actor': actor})
 
         return media
+
+    def posterPicture(self, url, r, w, h):
+        cropped = None
+        headers = {
+            'Accept': 'image/webp,*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Charset': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'Connection': 'keep-alive',
+            'Cookie': '__utma=217774537.2052325145.1549811165.1549811165.1549811165.1;__utmb=217774537.9.10.1549811165;__utmc=217774537;__utmz=217774537.1549811165.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1',
+            'Host': 'img.arzon.jp',
+            'Referer': 'https://www.arzon.jp/item_1502421.html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:65.0) Gecko/20100101 Firefox/65.0'
+        }
+        try:
+            response = self.client_session.get(url, headers=headers)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        img = Image.open(BytesIO(response.content))
+        if img.size[0] < img.size[1]:
+            # (left, upper, right, lower)
+            cropped = img.crop((0, 0, img.size[0], img.size[1]))
+        elif img.size[0] > img.size[1]:
+            rimg = img.resize((int(w), int(h)), Image.ANTIALIAS)
+            # (left, upper, right, lower)
+            cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
+        return cropped
+
+    def artPicture(self, url, r, w, h):
+        cropped = None
+        headers = {
+            'Accept': 'image/webp,*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Charset': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'Connection': 'keep-alive',
+            'Cookie': '__utma=217774537.2052325145.1549811165.1549811165.1549811165.1;__utmb=217774537.9.10.1549811165;__utmc=217774537;__utmz=217774537.1549811165.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1',
+            'Host': 'img.arzon.jp',
+            'Referer': 'https://www.arzon.jp/item_1502421.html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:65.0) Gecko/20100101 Firefox/65.0'
+        }
+        try:
+            response = self.client_session.get(url, headers=headers)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        img = Image.open(BytesIO(response.content))
+        # (left, upper, right, lower)
+        cropped = img.crop((0, 0, img.size[0], img.size[1]))
+        return cropped
+
+

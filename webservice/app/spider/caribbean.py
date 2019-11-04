@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import re
+from io import BytesIO
 
-from app.spider.censore_spider import CensoredSpider
+from PIL import Image
+
+from app.spider.basic_spider import BasicSpider
 
 
-class Caribbean(CensoredSpider):
+class Caribbean(BasicSpider):
 
     def search(self, q):
 
@@ -14,7 +17,7 @@ class Caribbean(CensoredSpider):
         item = []
         '获取查询结果页html对象'
         url = 'https://cn.caribbeancom.com/moviepages/%s/index.html' % q
-        html_item = self.basic.getHtmlByurl(url)
+        html_item = self.getHtmlByurl(url)
         if html_item['issuccess']:
             media_item = self.analysisMediaHtmlByxpath(
                 html_item['html'], q)
@@ -120,3 +123,19 @@ class Caribbean(CensoredSpider):
             media.update({'m_actor': actor})
 
         return media
+
+    def posterPicture(self, url, r, w, h):
+        cropped = None
+        try:
+            response = self.client_session.get(url)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        if response.status_code == 200:
+            img = Image.open(BytesIO(response.content))
+            # (left, upper, right, lower)
+            cropped = img.crop((0, 0, img.size[0], img.size[1]))
+        else:
+            pass
+        return cropped

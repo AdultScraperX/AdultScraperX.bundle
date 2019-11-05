@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 import re
-from io import BytesIO
+import sys
+
+if sys.version.find('2', 0, 1) == 0:
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
+else:
+    from io import StringIO
+    from io import BytesIO
 
 from PIL import Image
 
@@ -68,7 +77,7 @@ class Caribbean(BasicSpider):
         # xpath_poster = "//img/@src"
         # poster = html.xpath(xpath_poster)        
         # if len(poster) > 0:
-            #poster = self.tools.cleanstr(poster[0])
+        # poster = self.tools.cleanstr(poster[0])
         media.update({'m_poster': 'https://cn.caribbeancom.com/moviepages/%s/images/l_l.jpg' % number})
 
         # xpath_studio = "//div[@class='col-md-3 info']/p[5]/a/text()"
@@ -135,7 +144,15 @@ class Caribbean(BasicSpider):
         if response.status_code == 200:
             img = Image.open(BytesIO(response.content))
             # (left, upper, right, lower)
-            cropped = img.crop((0, 0, img.size[0], img.size[1]))
+            #cropped = img.crop((0, 0, img.size[0], img.size[1]))
+
+            # 制作最大尺寸背景用白色填充
+            w = int(600)
+            h = int(1000)
+            newim = Image.new('RGB', (w, h), 'black')
+            picW, picH = img.size
+            newim.paste(img.resize((int(w), int(w/picW*picH))), (0, int((h-w/picW*picH)/2)))
+            cropped = newim
         else:
             pass
         return cropped

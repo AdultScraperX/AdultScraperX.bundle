@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
+import sys
+if sys.version.find('2', 0, 1) == 0:
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
+else:
+    from io import StringIO
+    from io import BytesIO
 
+from PIL import Image
 
 from app.spider.basic_spider import BasicSpider
 

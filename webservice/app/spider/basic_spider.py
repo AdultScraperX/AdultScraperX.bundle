@@ -1,5 +1,14 @@
-from io import BytesIO
+# -*- coding: utf-8 -*-
 from lxml import etree  # Xpath包
+import sys
+if sys.version.find('2', 0, 1) == 0:
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
+else:
+    from io import StringIO
+    from io import BytesIO
 
 from PIL import Image
 

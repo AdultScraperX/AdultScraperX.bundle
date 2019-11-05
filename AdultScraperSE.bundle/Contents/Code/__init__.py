@@ -224,7 +224,7 @@ class AdultScraperSEAgent(Agent.Movies):
 
         Log('======结束查询======')
 
-    def update(self, metadata, media, lang):
+    def update(self, metadata, media, lang,force=True):
 
         Log('======开始执行更新媒体信息======')
         timeout = 300

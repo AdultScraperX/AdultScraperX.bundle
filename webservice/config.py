@@ -1,5 +1,6 @@
 from app.formatter.CaribbeanFormatter import CaribbeanFormatter
 from app.formatter.censoredFormatter import CensoredFormatter
+from app.formatter.data18Formatter import Data18Formatter
 from app.formatter.basicFormatter import BasicFormater
 from app.spider.arzon import Arzon
 from app.spider.javbus import Javbus
@@ -72,8 +73,8 @@ SOURCE_LIST = {
     # 欧美搜刮
     'europe': [
         {
-            "pattern": "[a-zA-Z]+[\ -]?\d{3}",
-            'formatter': CensoredFormatter,
+            "pattern": ".+",
+            'formatter': Data18Formatter,
             'webList': [Data18]
         }
     ]

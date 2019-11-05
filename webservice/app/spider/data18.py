@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
+import sys
+if sys.version.find('2', 0, 1) == 0:
+    try:
+        from cStringIO import StringIO
+    except ImportError:
+        from StringIO import StringIO
+else:
+    from io import StringIO
+    from io import BytesIO
 
+from PIL import Image
 from app.spider.basic_spider import BasicSpider
 
 
@@ -13,7 +23,7 @@ class Data18(BasicSpider):
 
         '访问站点'
         url = 'https://data18.empirestores.co/Search?q=%s' % q
-        list_html_item = self.basic.getHtmlByurl(url)
+        list_html_item = self.getHtmlByurl(url)
         if list_html_item['issuccess']:
             '检测是否是为查询到结果'
             xpath_404 = "//div[@class='noresults']/h1/text()"
@@ -22,11 +32,11 @@ class Data18(BasicSpider):
 
             '获取html对象'
             xpaths = "//div[@class='grid-item']/a[1]/@href"
-            page_url_list = self.basic.getitemspage(list_html_item['html'], xpaths)
+            page_url_list = self.getitemspage(list_html_item['html'], xpaths)
             for page_url in page_url_list:
                 if page_url != '':
                     page_url = 'https://data18.empirestores.co%s' % page_url
-                    html_item = self.basic.getHtmlByurl(page_url)
+                    html_item = self.getHtmlByurl(page_url)
                     '解析html对象'
                     media_item = self.analysisMediaHtmlByxpath(html_item['html'])
                     item.append({'issuccess': True, 'data': media_item})
@@ -139,3 +149,16 @@ class Data18(BasicSpider):
             media.update({'m_actor': actor})
 
         return media
+
+    def posterPicture(self, url, r, w, h):
+        cropped = None
+        try:
+            response = self.client_session.get(url)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        img = Image.open(BytesIO(response.content))
+        # (left, upper, right, lower)
+        cropped = img.crop((0, 0, img.size[0], img.size[1]))
+        return cropped

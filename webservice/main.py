@@ -57,7 +57,7 @@ def img(data):
 
 
 @app.route('/<requestType>/<dirTagLine>/<q>/<token>')
-def auto(requestType, dirTagLine, q, token):
+def getMediaInfos(requestType, dirTagLine, q, token):
     '''
     自动查询：返回最先成功的item
     '''

@@ -47,38 +47,25 @@ class Data18(BasicSpider):
         return item
 
     def analysisMediaHtmlByxpath(self, html):
-        '''
+        """
         根据html对象与xpath解析数据
         html:<object>
         html_xpath_dict:<dict>
         return:<dict{issuccess,ex,dict}>
-        '''
-        media = {
-            'm_id': '',
-            'm_number': '',
-            'm_title': '',
-            'm_poster': '',
-            'm_summary': '',
-            'm_studio': '',
-            'm_directors': '',
-            'm_collections': '',
-            'm_year': '',
-            'm_originallyAvailableAt': '',
-            'm_category': '',
-            'm_actor': ''
-        }
+        """
 
         xpath_title = "//h1[@class='description']/text()"
         title = html.xpath(xpath_title)
         if len(title) > 0:
             title = self.tools.cleanstr2(title[0])
-            media.update({'m_title': title})
+            self.media.update({'m_title': title})
 
         xpath_poster = "//div[@class='carousel-item active']/img[@class='img-fluid mx-auto']/@src"
         poster = html.xpath(xpath_poster)
         if len(poster) > 0:
             poster = self.tools.cleanstr(poster[0])
-            media.update({'m_poster': poster})
+            self.media.update({'m_poster': poster})
+            self.media.update({'m_art_url': poster})
 
         xpath_summary_1 = "//h5[@class='tag-line']/text()"
         xpath_summary_2 = "//div[@class='synopsis']/p/text()"
@@ -90,36 +77,36 @@ class Data18(BasicSpider):
         if len(summary_2) > 0:
             summary += '%s ' % self.tools.cleanstr2(summary_2[0])
         if summary != '':
-            media.update({'m_summary': summary})
+            self.media.update({'m_summary': summary})
 
         xpath_studio = "//div[@class='studio']/a/text()"
         studio = html.xpath(xpath_studio)
         if len(studio) > 0:
             studio = self.tools.cleanstr2(studio[0])
-            media.update({'m_studio': studio})
+            self.media.update({'m_studio': studio})
 
         xpath_directors = "//div[@class='director']/a/text()"
         directors = html.xpath(xpath_directors)
         if len(directors) > 0:
             directors = self.tools.cleanstr2(directors[0])
-            media.update({'m_directors': directors})
+            self.media.update({'m_directors': directors})
 
         '收藏集-因为没有系列字段所以用演播室代替'
         if len(studio) > 0:
-            media.update({'m_collections': studio})
+            self.media.update({'m_collections': studio})
 
         xpath_year = "//div[@class='release-date'][1]/text()"
         year = html.xpath(xpath_year)
         if len(year) > 0:
             year = self.tools.cleanstr2(year[0])
-            media.update({'m_year': self.tools.dateconvert(year)})
+            self.media.update({'m_year': self.tools.dateconvert(year)})
 
         xpath_originallyAvailableAt = "//div[@class='release-date'][1]/text()"
         originallyAvailableAt = html.xpath(xpath_originallyAvailableAt)
         if len(originallyAvailableAt) > 0:
             originallyAvailableAt = self.tools.cleanstr2(
                 originallyAvailableAt[0])
-            media.update(
+            self.media.update(
                 {'m_originallyAvailableAt': self.tools.dateconvert(originallyAvailableAt)})
 
         xpath_category = "//div[@class='categories']//a//text()"
@@ -129,7 +116,7 @@ class Data18(BasicSpider):
             category_list.append(self.tools.cleanstr2(category))
         categorys = ','.join(category_list)
         if len(categorys) > 0:
-            media.update({'m_category': categorys})
+            self.media.update({'m_category': categorys})
 
         actor = {}
         xpath_actor_name = "//div[@class='video-performer']/a/span[@class='video-performer-name overlay']/span[@class='overlay-inner']/text()"
@@ -146,9 +133,9 @@ class Data18(BasicSpider):
                 actor.update({self.tools.cleanstr2(
                     actorname): ''})
 
-            media.update({'m_actor': actor})
+            self.media.update({'m_actor': actor})
 
-        return media
+        return self.media
 
     def posterPicture(self, url, r, w, h):
         cropped = None

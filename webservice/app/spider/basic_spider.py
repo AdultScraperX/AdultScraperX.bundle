@@ -1,14 +1,5 @@
-# -*- coding: utf-8 -*-
+from io import BytesIO
 from lxml import etree  # Xpath包
-import sys
-if sys.version.find('2', 0, 1) == 0:
-    try:
-        from cStringIO import StringIO
-    except ImportError:
-        from StringIO import StringIO
-else:
-    from io import StringIO
-    from io import BytesIO
 
 from PIL import Image
 
@@ -24,6 +15,21 @@ class BasicSpider:
         self.tools = Tools()
         self.configmanager = ConfigManager()
         self.client_session = requests.Session()
+        self. media = {
+            'm_id': '',
+            'm_number': '',
+            'm_title': '',
+            'm_poster': '',
+            'm_art_url': '',
+            'm_summary': '',
+            'm_studio': '',
+            'm_directors': '',
+            'm_collections': '',
+            'm_year': '',
+            'm_originallyAvailableAt': '',
+            'm_category': '',
+            'm_actor': ''
+        }
 
     def search(self, q):
         """
@@ -65,6 +71,7 @@ class BasicSpider:
         return cropped
 
     def artPicture(self, url, r, w, h):
+        cropped = None
         """
         处理艺人图片，默认实现不进行剪裁，如果子类无特殊需求不需要重写
         :param url: 图片地址
@@ -73,10 +80,37 @@ class BasicSpider:
         :param h: 缩放比例:高
         :return: 处理后的图片
         """
-        # TODO 目前除Arzon实现了演员图片外其他站未实现，且默认实现未提供
-        return None
+        cropped = None
+        try:
+            response = self.client_session.get(url)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+        cropped = Image.open(BytesIO(response.content))
+        return cropped
 
-    # TODO 实现背景图功能
+    def actorPicture(self, url, r, w, h):
+        """
+       处理背景图片，默认实现根据webui配置进行剪裁，如果子类无特殊需求不需要重写
+       :param url: 图片地址
+       :param r: 横向裁切位置
+       :param w: 缩放比例:宽
+       :param h: 缩放比例:高
+       :return: 处理后的图片
+       """
+        cropped = None
+        try:
+            response = self.client_session.get(url)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        img = Image.open(BytesIO(response.content))
+        rimg = img.resize((int(w), int(h)), Image.ANTIALIAS)
+        # (left, upper, right, lower)
+        cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
+        # TODO 目前除Arzon实现了演员图片外其他站未实现，且默认实现未提供
+        return cropped
 
     def getName(self):
         return self.__class__.__name__
@@ -94,6 +128,8 @@ class BasicSpider:
             cropped = self.posterPicture(url, r, w, h)
         if mode == 'art':
             cropped = self.artPicture(url, r, w, h)
+        if mode == 'actor':
+            cropped = self.actorPicture(url, r, w, h)
         return cropped
 
     def webSiteConfirmByurl(self, url, headers):

@@ -334,6 +334,32 @@ class AdultScraperSEAgent(Agent.Movies):
                 if not poster == None:
                     metadata.posters[url] = Proxy.Media(poster)
 
+            if media_item == 'm_art_url':
+                art_url = data.get(media_item)
+                r = Prefs['Poster_Cutting_X']
+                w = Prefs['Poster_Cutting_W']
+                h = Prefs['Poster_Cutting_H']
+
+                art_data = {
+                    'mode': 'art',
+                    'url': art_url,
+                    'r': r,
+                    'w': w,
+                    'h': h,
+                    'webkey': webkey.lower()
+                }
+                art_data_json = json.dumps(art_data)
+                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
+                Log('背景：%s' % url)
+                art = None
+                try:
+                    art = HTTP.Request(url, timeout=timeout).content
+                except Exception as ex:
+                    Log('捕获异常：%s:%s' % (ex, url))
+                if not art == None:
+                    metadata.art[url] = Proxy.Media(art)
+
             if media_item == 'm_actor':
                 metadata.roles.clear()
                 actors_list = data.get(media_item)
@@ -344,7 +370,7 @@ class AdultScraperSEAgent(Agent.Movies):
                         imgurl = actors_list.get(key)
                         if imgurl != '':
                             art_data = {
-                                'mode': 'art',
+                                'mode': 'actor',
                                 'url': imgurl,
                                 'r': 0,
                                 'w': 125,
@@ -357,7 +383,7 @@ class AdultScraperSEAgent(Agent.Movies):
                             Log('演员头像：%s' % url)
                             role.photo = url
 
-        Log('======结束执行更新媒体信息======')
+            Log('======结束执行更新媒体信息======')
 
     def querynameVoleClean(self, st):
         st = st.lower().split('-')

@@ -193,6 +193,28 @@ class Arzon(BasicSpider):
             cropped = rimg.crop((int(w) - int(r), 0, int(w), int(h)))
         return cropped
 
+    def artPicture(self, url, r, w, h):
+        cropped = None
+        headers = {
+            'Accept': 'image/webp,*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Charset': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'Connection': 'keep-alive',
+            'Cookie': '__utma=217774537.2052325145.1549811165.1549811165.1549811165.1;__utmb=217774537.9.10.1549811165;__utmc=217774537;__utmz=217774537.1549811165.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1',
+            'Host': 'img.arzon.jp',
+            'Referer': 'https://www.arzon.jp/item_1502421.html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:65.0) Gecko/20100101 Firefox/65.0'
+        }
+        try:
+            response = self.client_session.get(url, headers=headers)
+        except Exception as ex:
+            print('error : %s' % repr(ex))
+            return cropped
+
+        img = Image.open(BytesIO(response.content))
+        cropped = img.crop((0, 0, img.size[0], img.size[1]))
+        return cropped
+
     def actorPicture(self, url, r, w, h):
         cropped = None
         headers = {

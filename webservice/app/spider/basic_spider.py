@@ -73,7 +73,7 @@ class BasicSpider:
     def artPicture(self, url, r, w, h):
         cropped = None
         """
-        处理艺人图片，默认实现不进行剪裁，如果子类无特殊需求不需要重写
+        处理背景图片，默认实现不进行剪裁，如果子类无特殊需求不需要重写
         :param url: 图片地址
         :param r: 横向裁切位置
         :param w: 缩放比例:宽
@@ -86,12 +86,14 @@ class BasicSpider:
         except Exception as ex:
             print('error : %s' % repr(ex))
             return cropped
-        cropped = Image.open(BytesIO(response.content))
+        img = Image.open(BytesIO(response.content))
+        cropped = img.crop((0, 0, img.size[0], img.size[1]))
+
         return cropped
 
     def actorPicture(self, url, r, w, h):
         """
-       处理背景图片，默认实现根据webui配置进行剪裁，如果子类无特殊需求不需要重写
+       处理艺人图片，默认实现根据webui配置进行剪裁，如果子类无特殊需求不需要重写
        :param url: 图片地址
        :param r: 横向裁切位置
        :param w: 缩放比例:宽

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import re
-import os
 import base64
 import json
 from datetime import datetime
@@ -26,7 +25,7 @@ def MainMenu():
         for section in sections:
             key = section.get('key')
             title = section.get('title')
-            #Log(' --> %s: %s' % (title, key))
+            # Log(' --> %s: %s' % (title, key))
             oc.add(DirectoryObject(key=Callback(
                 UpdateType, title=title, key=[key]), title='' + title + ''))
             all_keys.append(key)
@@ -34,8 +33,9 @@ def MainMenu():
         pass
     if len(all_keys) > 0:
         oc.add(DirectoryObject(key=Callback(
-            UpdateType, title=u''+unicode('所有部分', "utf-8"), key=all_keys), title=u''+unicode('更新所有部分,请返回到片库查看!', "utf-8")))
-    oc.add(PrefsObject(title=u''+unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
+            UpdateType, title=u'' + unicode('所有部分', "utf-8"), key=all_keys),
+            title=u'' + unicode('更新所有部分,请返回到片库查看!', "utf-8")))
+    oc.add(PrefsObject(title=u'' + unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
     return oc
 
 
@@ -43,11 +43,11 @@ def MainMenu():
 def UpdateType(title, key):
     oc = ObjectContainer(title2=title)
     oc.add(DirectoryObject(key=Callback(
-        UpdateSection, title=title, key=key), title=u''+unicode('扫描', "utf-8")))
+        UpdateSection, title=title, key=key), title=u'' + unicode('扫描', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, analyze=True), title=u''+unicode('分析媒体', "utf-8")))
+                                        key=key, analyze=True), title=u'' + unicode('分析媒体', "utf-8")))
     oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, force=True), title=u''+unicode('强制元数据刷新', "utf-8")))
+                                        key=key, force=True), title=u'' + unicode('强制元数据刷新', "utf-8")))
     return oc
 
 
@@ -133,7 +133,9 @@ class AdultScraperXAgent(Agent.Movies):
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request(
-                    '%s:%s/manual/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']), timeout=timeout).content
+                    '%s:%s/manual/%s/%s/%s' % (
+                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                    timeout=timeout).content
                 # base64jsondata = base64.b64decode(jsondata)
                 # Log(base64jsondata)
                 # dict_data_list = json.loads(base64jsondata)
@@ -157,7 +159,6 @@ class AdultScraperXAgent(Agent.Movies):
                                 if item_key == 'm_number':
                                     id = data.get(item_key)
                                 if item_key == 'm_title':
-
                                     poster_url = data['m_poster']
                                     r = Prefs['Poster_Cutting_X']
                                     w = Prefs['Poster_Cutting_W']
@@ -193,7 +194,8 @@ class AdultScraperXAgent(Agent.Movies):
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']), timeout=timeout).content
+                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
+                                        timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
@@ -224,7 +226,7 @@ class AdultScraperXAgent(Agent.Movies):
 
         Log('======结束查询======')
 
-    def update(self, metadata, media, lang,force=True):
+    def update(self, metadata, media, lang, force=True):
 
         Log('======开始执行更新媒体信息======')
         timeout = 300
@@ -324,7 +326,7 @@ class AdultScraperXAgent(Agent.Movies):
                 }
                 poster_data_json = json.dumps(poster_data)
                 url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))                                        
+                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))
                 Log('海报：%s' % url)
                 poster = None
                 try:

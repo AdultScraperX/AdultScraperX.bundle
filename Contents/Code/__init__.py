@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperSE v2.0.0'
+NAME = 'AdultScraperX Bate1.0.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -77,7 +77,7 @@ def Update(url, method):
     return
 
 
-class AdultScraperSEAgent(Agent.Movies):
+class AdultScraperXAgent(Agent.Movies):
     name = NAME
     languages = [Locale.Language.English]
     primary_provider = True
@@ -383,7 +383,7 @@ class AdultScraperSEAgent(Agent.Movies):
                             Log('演员头像：%s' % url)
                             role.photo = url
 
-            Log('======结束执行更新媒体信息======')
+        Log('======结束执行更新媒体信息======')
 
     def querynameVoleClean(self, st):
         st = st.lower().split('-')

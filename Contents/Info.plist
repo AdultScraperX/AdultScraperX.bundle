@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.plexapp.agents.AdultScraperX</string>	
+	<key>PlexFrameworkVersion</key>
+	<string>2</string>
+	<key>PlexPluginClass</key>
+	<string>Agent</string>
+	<key>PlexPluginMode</key>
+	<string>AlwaysOn</string>
+	<key>PlexPluginCodePolicy</key>
+	<string>Elevated</string>
+	<key>PlexAgentAttributionText</key>
+	<string>
+	<![CDATA[
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+AdultScraperX (Bate 1.0.0) <br/><br/>
+&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;
+AdultScraperX 是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、
+工作室的信息匹配。<br/><br/>
+使用帮助：<br/>
+本地字幕挂载：<br/>
+需要在代理中勾选：Local Media Assets (Movies)<br/>
+<br/>
+plex目录标记设置： <br/>
+欧美与日本(骑兵、步兵、动漫)的目录标记可以在插件中自定义配置:<br/>
+配置目录标记必须含有(前、后)特殊字符如：-M- 、*M*、=M=以此类推 <br/>
+目录标记只可出现一次，并且与主目录文件夹名的标记一致才可识别<br/>
+<br/>
+命名规范：<br/>
+日本骑兵：<br/>
+标准番号.mp4  (优选)<br/>
+任意字符与标准番号.mp4  <br/>
+ <br/>
+日本步兵：<br/>
+标准番号.mp4  (优选)<br/>
+任意字符与标准番号.mp4  <br/>
+<br/>
+日本动漫：<br/>
+标准番号.mp4  (优选)<br/>
+任意字符与标准番号.mp4  <br/>
+欧美：<br/>
+工作室 - 片名 - 明星（可以包含多个）.mp4  <br/>
+<br/>
+同片多版本或多CD的命名方法： <br/>
+命名-vol1.mp4  <br/>
+命名-vol2.mp4  <br/>
+
+]]>
+</string>
+</dict>
+</plist>

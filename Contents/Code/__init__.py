@@ -132,13 +132,9 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('执行模式：手动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request(
-                    '%s:%s/manual/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
-                    timeout=timeout).content
-                # base64jsondata = base64.b64decode(jsondata)
-                # Log(base64jsondata)
-                # dict_data_list = json.loads(base64jsondata)
+                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                   queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
                     json_data_list = dict_data_list['json_data']
@@ -160,15 +156,9 @@ class AdultScraperXAgent(Agent.Movies):
                                     id = data.get(item_key)
                                 if item_key == 'm_title':
                                     poster_url = data['m_poster']
-                                    r = Prefs['Poster_Cutting_X']
-                                    w = Prefs['Poster_Cutting_W']
-                                    h = Prefs['Poster_Cutting_H']
                                     poster_data = {
                                         'mode': 'poster',
                                         'url': poster_url,
-                                        'r': r,
-                                        'w': w,
-                                        'h': h,
                                         'webkey': wk.lower()
                                     }
                                     poster_data_json = json.dumps(poster_data)
@@ -193,9 +183,8 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s' % (
-                    Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, queryname, Prefs['Service_Token']),
-                                        timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                   queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
@@ -312,16 +301,10 @@ class AdultScraperXAgent(Agent.Movies):
 
             if media_item == 'm_poster':
                 poster_url = data.get(media_item)
-                r = Prefs['Poster_Cutting_X']
-                w = Prefs['Poster_Cutting_W']
-                h = Prefs['Poster_Cutting_H']
 
                 poster_data = {
                     'mode': 'poster',
                     'url': poster_url,
-                    'r': r,
-                    'w': w,
-                    'h': h,
                     'webkey': webkey.lower()
                 }
                 poster_data_json = json.dumps(poster_data)
@@ -338,16 +321,10 @@ class AdultScraperXAgent(Agent.Movies):
 
             if media_item == 'm_art_url':
                 art_url = data.get(media_item)
-                r = Prefs['Poster_Cutting_X']
-                w = Prefs['Poster_Cutting_W']
-                h = Prefs['Poster_Cutting_H']
 
                 art_data = {
                     'mode': 'art',
                     'url': art_url,
-                    'r': r,
-                    'w': w,
-                    'h': h,
                     'webkey': webkey.lower()
                 }
                 art_data_json = json.dumps(art_data)
@@ -374,9 +351,6 @@ class AdultScraperXAgent(Agent.Movies):
                             art_data = {
                                 'mode': 'actor',
                                 'url': imgurl,
-                                'r': 0,
-                                'w': 125,
-                                'h': 125,
                                 'webkey': webkey.lower()
                             }
                             art_data_json = json.dumps(art_data)

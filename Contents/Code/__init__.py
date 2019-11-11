@@ -131,7 +131,7 @@ class AdultScraperXAgent(Agent.Movies):
 
             if manual:
 
-                LocalFileName = self.getMediaLocalFileName(media)
+                LocalFileName = media.name
                 queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
                 Log('手动匹配Plex输出文件名：%s' % media.name)
                 Log('格式化后文件名：%s' % LocalFileName)

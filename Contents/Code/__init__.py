@@ -195,7 +195,8 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
                 Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
@@ -215,9 +216,11 @@ class AdultScraperXAgent(Agent.Movies):
                                     name = media_dict.get(item_key)
 
                             media_d = json.dumps(media_dict)
-                        id = base64.b64encode('%s|A|%s|%s|%s' % (id, wk, media_d, dirTagLine))
+                        id = base64.b64encode('%s|A|%s|%s|%s' % (
+                            id, wk, media_d, dirTagLine))
                         score = 100
-                        new_result = dict(id=id, name=name, year='', score=score, lang=lang)
+                        new_result = dict(id=id, name=name,
+                                          year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
                         Log('匹配数据结果：success')
                     else:

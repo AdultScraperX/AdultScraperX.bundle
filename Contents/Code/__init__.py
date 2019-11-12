@@ -188,19 +188,16 @@ class AdultScraperXAgent(Agent.Movies):
                 else:
                     Log('匹配数据结果：无')
             else:
-
                 LocalFileName = self.getMediaLocalFileName(media)
-                queryname = base64.b64encode(
-                    LocalFileName).replace('/', '[s]')
+                queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
                 Log('本地文件名：%s' % LocalFileName)
                 Log('base64后的关键字：%s' % queryname)
-
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
+                Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
                     for data in data_list:
@@ -218,20 +215,16 @@ class AdultScraperXAgent(Agent.Movies):
                                     name = media_dict.get(item_key)
 
                             media_d = json.dumps(media_dict)
-                        id = base64.b64encode('%s|A|%s|%s|%s' % (
-                            id, wk, media_d, dirTagLine))
+                        id = base64.b64encode('%s|A|%s|%s|%s' % (id, wk, media_d, dirTagLine))
                         score = 100
-                        new_result = dict(
-                            id=id, name=name, year='', score=score, lang=lang)
+                        new_result = dict(id=id, name=name, year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
                         Log('匹配数据结果：success')
                     else:
                         Log('匹配数据结果：无')
-
         Log('======结束查询======')
 
-    def update(self, metadata, media, lang, force=True):
-
+    def update(self, metadata, media, lang):
         Log('======开始执行更新媒体信息======')
         timeout = 300
         metadata_list = base64.b64decode(metadata.id).split('|')
@@ -249,7 +242,6 @@ class AdultScraperXAgent(Agent.Movies):
 
         '在标语处显示来源元数据站点'
         metadata.tagline = webkey
-
         for i, media_item in enumerate(data):
             if media_item == 'm_number':
                 number = data.get(media_item)

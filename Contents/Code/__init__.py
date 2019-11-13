@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-
+import os
+import io
+import fnmatch
 import re
 import base64
 import json
@@ -10,6 +12,8 @@ NAME = 'AdultScraperX Bate1.0.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
+load_file = Core.storage.load
+save_file = Core.storage.save
 
 
 def Start():
@@ -124,17 +128,21 @@ class AdultScraperXAgent(Agent.Movies):
         if dirTagLine != None:
 
             timeout = 300
-            queryname = base64.b64encode(media.name).replace('/', '[s]')
-            Log('plex输出的关键字：%s' % media.name)
-            Log('base64后的关键字：%s' % queryname)
 
             if manual:
+
+                LocalFileName = media.name
+                queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
+                Log('手动匹配Plex输出文件名：%s' % media.name)
+                Log('格式化后文件名：%s' % LocalFileName)
+                Log('base64后的关键字：%s' % queryname)
+
                 Log('执行模式：手动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                   queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
-                
+                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
                     json_data_list = dict_data_list['json_data']
@@ -180,12 +188,17 @@ class AdultScraperXAgent(Agent.Movies):
                 else:
                     Log('匹配数据结果：无')
             else:
+                LocalFileName = self.getMediaLocalFileName(media)
+                queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
+                Log('本地文件名：%s' % LocalFileName)
+                Log('base64后的关键字：%s' % queryname)
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                   queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
+                Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']
                     for data in data_list:
@@ -206,17 +219,15 @@ class AdultScraperXAgent(Agent.Movies):
                         id = base64.b64encode('%s|A|%s|%s|%s' % (
                             id, wk, media_d, dirTagLine))
                         score = 100
-                        new_result = dict(
-                            id=id, name=name, year='', score=score, lang=lang)
+                        new_result = dict(id=id, name=name,
+                                          year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
                         Log('匹配数据结果：success')
                     else:
                         Log('匹配数据结果：无')
-
         Log('======结束查询======')
 
-    def update(self, metadata, media, lang, force=True):
-
+    def update(self, metadata, media, lang):
         Log('======开始执行更新媒体信息======')
         timeout = 300
         metadata_list = base64.b64decode(metadata.id).split('|')
@@ -234,7 +245,6 @@ class AdultScraperXAgent(Agent.Movies):
 
         '在标语处显示来源元数据站点'
         metadata.tagline = webkey
-
         for i, media_item in enumerate(data):
             if media_item == 'm_number':
                 number = data.get(media_item)
@@ -361,33 +371,21 @@ class AdultScraperXAgent(Agent.Movies):
 
         Log('======结束执行更新媒体信息======')
 
-    def querynameVoleClean(self, st):
-        st = st.lower().split('-')
-        name = []
-        for s in st:
-            if s.find('vol') >= 0:
-                if not s[3].isdigit():
-                    name.append(s)
-            else:
-                name.append(s)
-        ss = '-'.join(name)
-        return ss
-
     def getMediaLocalPath(self, media):
         '''
         获取本地媒体路径
         '''
         mediafilepath = ''
-        mediafilepathlist = media.filename.split('%2F')
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
         medianame = ''
         extensionname = ''
 
         for i in range(len(mediafilepathlist)):
             if i == (len(mediafilepathlist) - 1):
-                medianame = mediafilepathlist[i].split('%2E')[0]
-                extensionname = mediafilepathlist[i].split('%2E')[1]
+                medianame = mediafilepathlist[i].split('.')[0]
+                extensionname = mediafilepathlist[i].split('.')[1]
 
-        file = medianame + '%2E' + extensionname
+        file = medianame + '.' + extensionname
         mediafilepath = media.filename.replace(file, '')
 
         return mediafilepath
@@ -396,12 +394,16 @@ class AdultScraperXAgent(Agent.Movies):
         '''
         获得本地媒体文件名
         '''
-        medianame = ''
-        mediafilepathlist = media.filename.split('%2F')
+        tmp = []
+        relist = []
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
         for i in range(len(mediafilepathlist)):
             if i == (len(mediafilepathlist) - 1):
-                medianame = mediafilepathlist[i].split('%2E')[0]
-
+                medianamelist = mediafilepathlist[i].split('.')
+                for j in range(len(medianamelist)):
+                    if j < (len(medianamelist)-1):
+                        tmp.append(medianamelist[j])
+        medianame = ' '.join(tmp)
         return medianame
 
     def getMediaLocalFileExtensionName(self, media):
@@ -409,25 +411,9 @@ class AdultScraperXAgent(Agent.Movies):
         获得本地媒体后缀名
         '''
         extensionname = ''
-        mediafilepathlist = media.filename.split('%2F')
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
         for i in range(len(mediafilepathlist)):
             if i == (len(mediafilepathlist) - 1):
-                extensionname = mediafilepathlist[i].split('%2E')[1]
+                extensionname = mediafilepathlist[i].split('0')[1]
 
         return extensionname
-
-    def rex(self, re_str, st):
-        # Log(re_str)
-        upper_lower_count = 0
-        number_dict = []
-        re_items = re.findall(re_str, st)
-        if re_items != None:
-            for re_item in re_items:
-                if re_item.isupper():
-                    upper_lower_count + 1
-                    number_dict.append(re_item)
-                if re_item.islower():
-                    upper_lower_count + 1
-                    number_dict.append(re_item)
-        # Log(number_dict[0])
-        return number_dict[0]

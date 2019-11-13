@@ -146,10 +146,10 @@ class AdultScraperXAgent(Agent.Movies):
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
                     json_data_list = dict_data_list['json_data']
-                    if Prefs['Orderby'] == '默认':
-                        Log('结果输出排序方式：默认')
-                    elif Prefs['Orderby'] == '反序':
+                    if Prefs['Orderby'] == '反序':
                         Log('结果输出排序方式：反序')
+                    elif Prefs['Orderby'] == '默认':
+                        Log('结果输出排序方式：默认')
                         json_data_list.reverse()
 
                     for json_data in json_data_list:
@@ -198,6 +198,8 @@ class AdultScraperXAgent(Agent.Movies):
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
                                                                        queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
+                dict_data.reverse()
+
                 Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
                     data_list = dict_data['json_data']

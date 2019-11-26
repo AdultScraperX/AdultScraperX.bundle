@@ -12,74 +12,10 @@ NAME = 'AdultScraperX Bate1.0.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
-load_file = Core.storage.load
-save_file = Core.storage.save
 
 
 def Start():
     HTTP.CacheTime = 0
-
-
-@handler(PREFIX, NAME, thumb=ICON, art=ART)
-def MainMenu():
-    oc = ObjectContainer(no_cache=True)
-    all_keys = []
-    try:
-        sections = XML.ElementFromURL(PMS_URL).xpath('//Directory')
-        for section in sections:
-            key = section.get('key')
-            title = section.get('title')
-            # Log(' --> %s: %s' % (title, key))
-            oc.add(DirectoryObject(key=Callback(
-                UpdateType, title=title, key=[key]), title='' + title + ''))
-            all_keys.append(key)
-    except:
-        pass
-    if len(all_keys) > 0:
-        oc.add(DirectoryObject(key=Callback(
-            UpdateType, title=u'' + unicode('所有部分', "utf-8"), key=all_keys),
-            title=u'' + unicode('更新所有部分,请返回到片库查看!', "utf-8")))
-    oc.add(PrefsObject(title=u'' + unicode('设置', "utf-8"), thumb=R('icon-prefs.png')))
-    return oc
-
-
-@route(PREFIX + '/type', key=int)
-def UpdateType(title, key):
-    oc = ObjectContainer(title2=title)
-    oc.add(DirectoryObject(key=Callback(
-        UpdateSection, title=title, key=key), title=u'' + unicode('扫描', "utf-8")))
-    oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, analyze=True), title=u'' + unicode('分析媒体', "utf-8")))
-    oc.add(DirectoryObject(key=Callback(UpdateSection, title=title,
-                                        key=key, force=True), title=u'' + unicode('强制元数据刷新', "utf-8")))
-    return oc
-
-
-@route(PREFIX + '/section', key=int, force=bool, analyze=bool)
-def UpdateSection(title, key, force=False, analyze=False):
-    for section in key:
-        if analyze:
-            url = PMS_URL + section + '/analyze'
-            method = "PUT"
-        else:
-            method = "GET"
-            url = PMS_URL + section + '/refresh'
-            if force:
-                url += '?force=1'
-        Thread.Create(Update, url=url, method=method)
-    if title == 'All sections':
-        return ObjectContainer(header=title, message='所有部分都将更新,请返回到片库查看!')
-    elif len(key) > 1:
-        return ObjectContainer(header=title, message='所有选定的部分都将更新,请返回到片库查看!')
-    else:
-        return ObjectContainer(header=title, message='部分 "' + title + '" 将会被更新,请返回到片库查看!')
-
-
-@route(PREFIX + '/update')
-def Update(url, method):
-    update = HTTP.Request(url, cacheTime=0, method=method).content
-    return
-
 
 class AdultScraperXAgent(Agent.Movies):
     name = NAME
@@ -146,10 +82,10 @@ class AdultScraperXAgent(Agent.Movies):
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
                     json_data_list = dict_data_list['json_data']
-                    if Prefs['Orderby'] == '默认':
-                        Log('结果输出排序方式：默认')
-                    elif Prefs['Orderby'] == '反序':
+                    if Prefs['Orderby'] == '反序':
                         Log('结果输出排序方式：反序')
+                    elif Prefs['Orderby'] == '默认':
+                        Log('结果输出排序方式：默认')
                         json_data_list.reverse()
 
                     for json_data in json_data_list:
@@ -197,10 +133,12 @@ class AdultScraperXAgent(Agent.Movies):
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
                                                                        queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
-                dict_data = json.loads(jsondata)
+                dict_data = json.loads(jsondata)     
+
                 Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
-                    data_list = dict_data['json_data']
+                    data_list = dict_data['json_data']           
+                    data_list.reverse()
                     for data in data_list:
                         id = ''
                         name = ''

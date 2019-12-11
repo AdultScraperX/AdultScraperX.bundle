@@ -6,7 +6,7 @@
 plex目录标记设置： 
 欧美与日本(骑兵、步兵、动漫)的目录标记可以在插件中自定义配置:配置目录标记必须含有(前、后)特殊字符如：-M- 、*M*、=M=以此类推 
 目录标记只可出现一次，并且与主目录文件夹名的标记一致才可识别
-### QQ群：721786707
+### TG群：https://t.me/AdultScraperX
 
 ### 服务端项目地址 
 - https://github.com/chunsiyang/AdultScraperX-server

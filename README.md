@@ -71,9 +71,6 @@ Plex端口 ：plex所使用的端口
 moveName  --noCache
 ```
 搜刮器默认启用缓存机制，手动匹配可跳过缓存进行匹配，需要在匹配名称结尾加入代码 --noCache 
-```
-moveName  --notre
-```
-手动匹配绕过正则根据输入直接匹配
+
 
 

@@ -1,14 +1,19 @@
 # AdultScraperX 
 ### AdultScraperX是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
 使用帮助
-本地字幕挂载：
+- AdultScraperX 需要配合 AdultScraperX-server 一起试用
+
+- 本地字幕挂载：
 需要在代理中勾选：Local Media Assets (Movies)
-plex目录标记设置： 
-欧美与日本(骑兵、步兵、动漫)的目录标记可以在插件中自定义配置:配置目录标记必须含有(前、后)特殊字符如：-M- 、*M*、=M=以此类推 
-目录标记只可出现一次，并且与主目录文件夹名的标记一致才可识别
+- plex目录标记设置： 
+```
+1、欧美与日本(骑兵、步兵、动漫)的主目录标记可以在插件中自定义配置
+2、配置目录标记:必须含有(前、后)特殊字符如：-M- 、*M*、=M=以此类推
+3、主目录标记只可出现一次，并且与主目录文件夹名的标记一致才可识别
+```
 ### TG群：https://t.me/AdultScraperX
 
-### 服务端项目地址 
+### AdultScraperX-server 服务端项目地址 
 - https://github.com/chunsiyang/AdultScraperX-server
 
 ### 命名规范：

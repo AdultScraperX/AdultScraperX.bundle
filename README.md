@@ -67,7 +67,6 @@ Plex端口 ：plex所使用的端口
 ```
 --checkSpider
 ```
-【此功能需服务端开启mongo缓存库】
 查询服务端搜刮器连接状态，用于排查网络问题，推荐安装插件并设置完成后运行
 ```
 moveName  --noCache

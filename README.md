@@ -1,6 +1,9 @@
 # AdultScraperX 
 ### AdultScraperX是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
-### AdultScraperX 需要配合 AdultScraperX-server 一起试用
+## AdultScraperX 需要搭配 AdultScraperX-server 一起使用
+- 服务端项目地址：
+[https://github.com/chunsiyang/AdultScraperX-server](https://github.com/chunsiyang/AdultScraperX-server)
+
 # 使用帮助
 ### 本地字幕挂载：
 - 需要在代理中勾选：Local Media Assets (Movies)

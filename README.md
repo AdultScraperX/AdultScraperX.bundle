@@ -1,6 +1,8 @@
 # AdultScraperX 
-### AdultScraperX
-- 是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
+### AdultScraperX是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
+## AdultScraperX 需要搭配 AdultScraperX-server 一起使用
+- 服务端项目地址：
+[https://github.com/chunsiyang/AdultScraperX-server](https://github.com/chunsiyang/AdultScraperX-server)
 
 # 使用帮助
 ### 本地字幕挂载：
@@ -41,30 +43,39 @@
 - 命名-vol1.mp4
 - 命名-vol2.mp4
 
-### 插件配置说明
 
-- API服务URL ：后端地址
-- API服务Port ： 后端端口
-- 个人DDNS ：plex所使用的公网域名或固定IP地址(不含http或https头)
-- Plex端口 ：plex所使用的端口
-- 令牌 ： 访问服务端的令牌
+### 插件配置说明
+- Plex Plugin 服务端参数配置
+```
+- API服务URL ：服务端地址（填写时需包含 http://或https://头）
+- API服务Port ： 服务端端口
+```
+- 使用缓存或开启用户权限时才需要填写下列配置，群晖Docker用户群体无需填写。
+```
+个人DDNS ：plex所使用的公网域名或固定IP地址
+Plex端口 ：plex所使用的端口
+令牌 ： 访问服务端的令牌
+```
 
 ### 检测服务端状态及命令说明
 在搜刮器为AdultScraperX的库中打开任意一个文件的手动匹配并输入以下代码
 ```
 --checkState
 ```
+【此功能需服务端开启mongo缓存库】
 查询与服务端当前状态，推荐安装插件并设置完成后运行
 ```
 --checkSpider
 ```
 查询服务端搜刮器连接状态，用于排查网络问题，推荐安装插件并设置完成后运行
 ```
-moveName  --noCache
+要匹配的名  --noCache
 ```
 搜刮器默认启用缓存机制，手动匹配可跳过缓存进行匹配，需要在匹配名称结尾加入代码 --noCache 
 ```
-moveName  --notre
+要匹配的名 --nore
 ```
-手动匹配绕过正则根据输入直接匹配
+手动匹配时不使用正则过滤关键字，根据所输入的片名直接查询匹配
+
+
 

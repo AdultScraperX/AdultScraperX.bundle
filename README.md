@@ -1,3 +1,4 @@
+### TG群：https://t.me/AdultScraperX
 # AdultScraperX 
 ### AdultScraperX是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
 ## AdultScraperX 需要搭配 AdultScraperX-server 一起使用

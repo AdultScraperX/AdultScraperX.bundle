@@ -307,6 +307,8 @@ class AdultScraperXAgent(Agent.Movies):
                             Log('演员头像：%s' % url)
                             role.photo = url
 
+        #s设置影片级别
+        metadata.content_rating = 'R18'
         Log('======结束执行更新媒体信息======')
 
     def getMediaLocalPath(self, media):

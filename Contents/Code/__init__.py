@@ -120,9 +120,9 @@ class AdultScraperXAgent(Agent.Movies):
                                 id=id, name=name, year='', score=score, lang=lang, thumb=thumb)
                             results.Append(
                                 MetadataSearchResult(**new_result))
-                    Log('匹配数据结果：success')
+                    Log('匹配数据结果：%s 【success】' % LocalFileName)
                 else:
-                    Log('匹配数据结果：无')
+                    Log('匹配数据结果：%s 【无】' % LocalFileName)
             else:
                 LocalFileName = self.getMediaLocalFileName(media)
                 queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
@@ -160,9 +160,10 @@ class AdultScraperXAgent(Agent.Movies):
                         new_result = dict(id=id, name=name,
                                           year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
-                        Log('匹配数据结果：success')
-                    else:
-                        Log('匹配数据结果：无')
+                        
+                    Log('匹配数据结果：%s 【success】' % LocalFileName)
+                else:
+                    Log('匹配数据结果：%s 【无】' % LocalFileName)
         Log('======结束查询======')
 
     def update(self, metadata, media, lang):
@@ -228,12 +229,14 @@ class AdultScraperXAgent(Agent.Movies):
                     date_object = datetime.strptime(
                         data.get(media_item), r'%Y-%m-%d')
                     metadata.originally_available_at = date_object
+                    Log('上映日期：%s' % date_object)
                 except Exception as ex:
                     Log('捕获异常：%s' % ex)
 
             if media_item == 'm_year':
                 try:
-                    metadata.year = metadata.originally_available_at.year
+                    metadata.year = int(data.get(media_item).split('-')[0])
+                    Log('影片年份：%s' % data.get(media_item).split('-')[0])
                 except Exception as ex:
                     Log('捕获异常：%s' % ex)
 
@@ -307,8 +310,9 @@ class AdultScraperXAgent(Agent.Movies):
                             Log('演员头像：%s' % url)
                             role.photo = url
 
-        #s设置影片级别
+        #设置影片级别
         metadata.content_rating = 'R18'
+        Log('更新媒体信息 ：【%s】 结束' % m_id)
         Log('======结束执行更新媒体信息======')
 
     def getMediaLocalPath(self, media):

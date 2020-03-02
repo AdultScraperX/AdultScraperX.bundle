@@ -1,88 +1,51 @@
 [
-    {
-        "id": "Service_IP",
-        "label": "API服务URL",
-        "type": "text",
-        "default": "http://"
-    },
-    {
-        "id": "Service_Port",
-        "label": "API服务Port",
-        "type": "text",
-        "default": ""
-    },    
-    {
-        "id": "User_DDNS",
-        "label": "个人DDNS ",
-        "type": "text",
-        "default": "abc.com"
-    },
-    {
-        "id": "Plex_Port",
-        "label": "Plex端口",
-        "type": "text",
-        "default": "32400"
-    },
-    {
-        "id": "Service_Token",
-        "label": "令牌",
-        "type": "text",
-        "default": ""
-    },
-    {
-        "id": "Dir_M",
-        "label": "日本-有码目录标记",
-        "type": "text",
-        "default": "=M="
-    },
-    {
-        "id": "Dir_NM",
-        "label": "日本-无码目录标记",
-        "type": "text",
-        "default": "=NM="
-    },
-    {
-        "id": "Dir_A",
-        "label": "日本-动漫目录标记",
-        "type": "text",
-        "default": "=A="
-    },
-    {
-        "id": "Dir_E",
-        "label": "欧美-目录标记",
-        "type": "text",
-        "default": "=E="
-    },
-    {
-        "id": "Title_jp",
-        "label": "日本AV标题样式",
-        "type": "enum",
-        "values": [
-            "番号",
-            "标题",
-            "番号,标题"
-        ],
-        "default": "番号"
-    },
-    {
-        "id": "Title_jp_anime",
-        "label": "日本AV动漫标题样式",
-        "type": "enum",
-        "values": [
-            "番号",
-            "标题",
-            "番号,标题"
-        ],
-        "default": "番号"
-    },
-    {
-        "id": "Orderby",
-        "label": "手动匹配列表排序方式",
-        "type": "enum",
-        "values": [
-            "默认",
-            "反序"
-        ],
-        "default": "默认"
-    }
+	{
+		"id": "Make_Backup",
+		"label": "Create backup",
+		"type": "bool",
+		"default": "true"
+	},
+	{
+		"id": "OSEnabled",
+		"label": "Support OpenSubtitles",
+		"type": "bool",
+		"default": "false"
+	},
+	{
+		"id": "Valid_Ext",
+		"label": "有效的字幕扩展名，以空格分隔",
+		"type": "text",
+		"default": ".srt .ssi"
+	},
+	{
+		"id": "PreferredCP",
+		"label": "首选语言（通过单击“信息”图标检查手册）",
+		"type": "enum",
+		"values" : ["None",
+			"Abkhazian","Afar","Afrikaans","Akan","Albanian","Amharic","Arabic","Aragonese",
+			"Armenian","Assamese","Avaric","Avestan","Aymara","Azerbaijani","Bambara",
+			"Bashkir","Basque","Belarusian","Bengali","Bislama","Bosnian","Breton",
+			"Bulgarian","Burmese","Catalan","Chamorro","Chechen","Chewa","Chichewa",
+			"Chinese_simplified","Chuvash","Cornish","Corsican","Cree","Croatian","Czech","Danish",
+			"Divehi","Dutch","Dzongkha","English","Esperanto","Estonian","Ewe","Faroese",
+			"Fijian","Finnish","French","Fulah","Frisian","Gaelic","Galician","Ganda",
+			"Georgian","German","Greek","Gujarati","Haitian","Hausa","Hebrew","Herero",
+			"Hindi","Hungarian","Icelandic","Ido","Igbo","Indonesian","Interlingue",
+			"Inuktitut","Inupiaq","Irish","Italian","Japanese","Javanese","Kalaallisut",
+			"Kannada","Kanuri","Kashmiri","Kazakh","Kikuyu","Kinyarwanda","Kirghiz","Komi",
+			"Kongo","Korean","Kuanyama","Kurdish","Lao","Latin","Latvian","Limburgan",
+			"Lithuanian","Luxembourgish","Macedonian","Malagasy","Malay","Malayalam",
+			"Maltese","Manx","Maori","Marathi","Marshallese","Moldavian","Mongolian",
+			"Nauru","Navajo","Ndonga","Nepali","Norwegian","NorwegianBokmal","NorwegianNynorsk",
+			"Ojibwa","Oriya","Oromo",
+			"Ossetian","Pali","Panjabi","Persian","Polish","Portuguese","Pushto","Quechua",
+			"Romanian","Rundi","Russian","Samoan","Sango","Sanskrit","Sardinian","Serbian",
+			"Shona","Sindhi","Sinhalese","Slovak","Slovenian","Somali","Spanish","Sundanese",
+			"Swahili","Swati","Swedish","Tagalog","Tahitian","Tajik","Tamil","Tatar","Telugu",
+			"Thai","Tibetan","Tigrinya","Tonga","Tsonga","Tswana","Turkish","Turkmen","Twi",
+			"Uighur","Ukrainian","Urdu","Uzbek","Venda","Vietnamese","Walloon","Welsh","Wolof",
+			"Xhosa","Yiddish","Yoruba","Zhuang","Zulu"],
+		"default": "Chinese_simplified"
+	}
+	
 ]

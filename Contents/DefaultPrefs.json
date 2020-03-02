@@ -1,0 +1,108 @@
+[
+    {
+        "id": "Service_IP",
+        "label": "API服务URL",
+        "type": "text",
+        "default": "http://"
+    },
+    {
+        "id": "Service_Port",
+        "label": "API服务Port",
+        "type": "text",
+        "default": ""
+    },    
+    {
+        "id": "User_DDNS",
+        "label": "个人DDNS ",
+        "type": "text",
+        "default": "abc.com"
+    },
+    {
+        "id": "Plex_Port",
+        "label": "Plex端口",
+        "type": "text",
+        "default": "32400"
+    },
+    {
+        "id": "Service_Token",
+        "label": "令牌",
+        "type": "text",
+        "default": ""
+    },
+    {
+        "id": "Dir_M",
+        "label": "日本-有码目录标记",
+        "type": "text",
+        "default": "=M="
+    },
+    {
+        "id": "Dir_NM",
+        "label": "日本-无码目录标记",
+        "type": "text",
+        "default": "=NM="
+    },
+    {
+        "id": "Dir_A",
+        "label": "日本-动漫目录标记",
+        "type": "text",
+        "default": "=A="
+    },
+    {
+        "id": "Dir_E",
+        "label": "欧美-目录标记",
+        "type": "text",
+        "default": "=E="
+    },
+    {
+        "id": "Transum",
+        "label": "翻译简介",
+        "type": "enum",
+        "values": [
+            "开启",
+            "关闭"
+        ],
+        "default": "关闭"
+    },
+    {
+        "id": "Trantitle",
+        "label": "翻译标题",
+        "type": "enum",
+        "values": [
+            "开启",
+            "关闭"
+        ],
+        "default": "关闭"
+    },
+    {
+        "id": "Title_jp",
+        "label": "日本AV标题样式",
+        "type": "enum",
+        "values": [
+            "番号",
+            "标题",
+            "番号,标题"
+        ],
+        "default": "番号"
+    },
+    {
+        "id": "Title_jp_anime",
+        "label": "日本AV动漫标题样式",
+        "type": "enum",
+        "values": [
+            "番号",
+            "标题",
+            "番号,标题"
+        ],
+        "default": "番号"
+    },
+    {
+        "id": "Orderby",
+        "label": "手动匹配列表排序方式",
+        "type": "enum",
+        "values": [
+            "默认",
+            "反序"
+        ],
+        "default": "默认"
+    }
+]

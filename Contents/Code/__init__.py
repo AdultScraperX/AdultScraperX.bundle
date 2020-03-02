@@ -17,6 +17,7 @@ PMS_URL = 'http://127.0.0.1:32400/library/sections/'
 def Start():
     HTTP.CacheTime = 0
 
+
 class AdultScraperXAgent(Agent.Movies):
     name = NAME
     languages = [Locale.Language.English]
@@ -37,6 +38,7 @@ class AdultScraperXAgent(Agent.Movies):
 
         Log('======开始查询======')
         # 获取path
+        Tran = None
         dirTagLine = None
         filePath = media.items[0].parts[0].file
         mediaPath = String.Unquote(filePath, usePlus=False)
@@ -61,6 +63,15 @@ class AdultScraperXAgent(Agent.Movies):
                 dirTagLine = 'europe'
                 break
         Log("本地文件判别类型标记：%s" % dirTagLine)
+
+        if Prefs['Transum'] == '开启':
+            Transum = 'y'
+            Log("简介翻译：开启")
+
+        if Prefs['Trantitle'] == '开启':
+            Trantitle = 'y'
+            Log("标题翻译：开启")
+
         if dirTagLine != None:
 
             timeout = 300
@@ -76,8 +87,8 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('执行模式：手动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port'], Transum,Trantitle), timeout=timeout).content
 
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
@@ -131,13 +142,13 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
-                dict_data = json.loads(jsondata)     
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port'], Transum,Trantitle), timeout=timeout).content
+                dict_data = json.loads(jsondata)
 
                 Log('查询结果数据：%s' % jsondata)
                 if dict_data['issuccess'] == 'true':
-                    data_list = dict_data['json_data']           
+                    data_list = dict_data['json_data']
                     data_list.reverse()
                     for data in data_list:
                         id = ''
@@ -160,7 +171,7 @@ class AdultScraperXAgent(Agent.Movies):
                         new_result = dict(id=id, name=name,
                                           year='', score=score, lang=lang)
                         results.Append(MetadataSearchResult(**new_result))
-                        
+
                     Log('匹配数据结果：%s 【success】' % LocalFileName)
                 else:
                     Log('匹配数据结果：%s 【无】' % LocalFileName)
@@ -310,7 +321,7 @@ class AdultScraperXAgent(Agent.Movies):
                             Log('演员头像：%s' % url)
                             role.photo = url
 
-        #设置影片级别
+        # 设置影片级别
         metadata.content_rating = 'R18'
         Log('更新媒体信息 ：【%s】 结束' % m_id)
         Log('======结束执行更新媒体信息======')

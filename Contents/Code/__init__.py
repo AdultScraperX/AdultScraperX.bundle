@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Bate1.0.0'
+NAME = 'AdultScraperX Beta1.1.1'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -38,7 +38,8 @@ class AdultScraperXAgent(Agent.Movies):
 
         Log('======开始查询======')
         # 获取path
-        Tran = None
+        Transum = None
+        Trantitle = None
         dirTagLine = None
         filePath = media.items[0].parts[0].file
         mediaPath = String.Unquote(filePath, usePlus=False)

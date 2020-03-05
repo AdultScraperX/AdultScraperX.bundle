@@ -79,7 +79,7 @@ class AdultScraperXAgent(Agent.Movies):
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                               queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
 
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
@@ -134,7 +134,7 @@ class AdultScraperXAgent(Agent.Movies):
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
                 jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                             queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
 
                 Log('查询结果数据：%s' % jsondata)
@@ -214,9 +214,15 @@ class AdultScraperXAgent(Agent.Movies):
                                     Log("标题翻译：开启")
                                     HTTP.ClearCache()
                                     HTTP.CacheTime = CACHE_1MONTH
-                                    tran_title = HTTP.Request('%s:%s/t/%s/%s' % (
-                                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
-                                    metadata.title = tran_title
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title']=='':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = tran_title
+                                    else:
+                                        metadata.title = data['m_title']
                                 else:
                                     metadata.title = data['m_title']
 
@@ -230,9 +236,16 @@ class AdultScraperXAgent(Agent.Movies):
                     Log("标题翻译：开启")
                     HTTP.ClearCache()
                     HTTP.CacheTime = CACHE_1MONTH
-                    tran_title = HTTP.Request('%s:%s/t/%s/%s' % (
-                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
-                    metadata.original_title = tran_title
+                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'],
+                                                  dirTagLine, base64.b64encode(data.get(media_item)).replace('/', ';<*'))
+
+                    if not data.get(media_item) == '':
+                        Log('翻译连接：%s', tran_url)
+                        tran_title = HTTP.Request(
+                            tran_url, timeout=timeout).content
+                        metadata.original_title = tran_title
+                    else:
+                        metadata.original_title = data.get(media_item)
                 else:
                     metadata.original_title = data.get(media_item)
 
@@ -242,9 +255,15 @@ class AdultScraperXAgent(Agent.Movies):
                     Log("简介翻译：开启")
                     HTTP.ClearCache()
                     HTTP.CacheTime = CACHE_1MONTH
-                    tran_summary = HTTP.Request('%s:%s/t/%s/%s' % (
-                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
-                    metadata.summary = tran_summary
+                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'],
+                                                  dirTagLine, base64.b64encode(data.get(media_item)).replace('/', ';<*'))
+                    if not data.get(media_item) == '':
+                        Log('翻译连接：%s', tran_url)
+                        tran_summary = HTTP.Request(
+                            tran_url, timeout=timeout).content
+                        metadata.summary = tran_summary
+                    else:                        
+                        metadata.summary = data.get(media_item)
                 else:
                     metadata.summary = data.get(media_item)
 

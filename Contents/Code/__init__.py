@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Beta1.1.1'
+NAME = 'AdultScraperX Beta1.1.2'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -38,8 +38,6 @@ class AdultScraperXAgent(Agent.Movies):
 
         Log('======开始查询======')
         # 获取path
-        Transum = None
-        Trantitle = None
         dirTagLine = None
         filePath = media.items[0].parts[0].file
         mediaPath = String.Unquote(filePath, usePlus=False)
@@ -65,14 +63,6 @@ class AdultScraperXAgent(Agent.Movies):
                 break
         Log("本地文件判别类型标记：%s" % dirTagLine)
 
-        if Prefs['Transum'] == '开启':
-            Transum = 'y'
-            Log("简介翻译：开启")
-
-        if Prefs['Trantitle'] == '开启':
-            Trantitle = 'y'
-            Log("标题翻译：开启")
-
         if dirTagLine != None:
 
             timeout = 300
@@ -88,8 +78,8 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('执行模式：手动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port'], Transum,Trantitle), timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                               queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
 
                 dict_data_list = json.loads(jsondata)
                 if dict_data_list['issuccess'] == 'true':
@@ -143,8 +133,8 @@ class AdultScraperXAgent(Agent.Movies):
                 Log('模式：自动')
                 HTTP.ClearCache()
                 HTTP.CacheTime = CACHE_1MONTH
-                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
-                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port'], Transum,Trantitle), timeout=timeout).content
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                             queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
                 dict_data = json.loads(jsondata)
 
                 Log('查询结果数据：%s' % jsondata)
@@ -219,16 +209,44 @@ class AdultScraperXAgent(Agent.Movies):
                             if Prefs['Title_jp'] == '番号':
                                 metadata.title = number
                             elif Prefs['Title_jp'] == '标题':
-                                metadata.title = data['m_title']
+
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_title = HTTP.Request('%s:%s/t/%s/%s' % (
+                                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
+                                    metadata.title = tran_title
+                                else:
+                                    metadata.title = data['m_title']
+
                             elif Prefs['Title_jp'] == '番号,标题':
                                 metadata.title = '%s %s' % (
                                     number, data['m_title'])
 
             if media_item == 'm_title':
-                metadata.original_title = data.get(media_item)
+
+                if Prefs['Trantitle'] == '开启':
+                    Log("标题翻译：开启")
+                    HTTP.ClearCache()
+                    HTTP.CacheTime = CACHE_1MONTH
+                    tran_title = HTTP.Request('%s:%s/t/%s/%s' % (
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
+                    metadata.original_title = tran_title
+                else:
+                    metadata.original_title = data.get(media_item)
 
             if media_item == 'm_summary':
-                metadata.summary = data.get(media_item)
+
+                if Prefs['Transum'] == '开启':
+                    Log("简介翻译：开启")
+                    HTTP.ClearCache()
+                    HTTP.CacheTime = CACHE_1MONTH
+                    tran_summary = HTTP.Request('%s:%s/t/%s/%s' % (
+                        Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(data.get(media_item)).replace('/',';<*')), timeout=timeout).content
+                    metadata.summary = tran_summary
+                else:
+                    metadata.summary = data.get(media_item)
 
             if media_item == 'm_studio':
                 metadata.studio = data.get(media_item)

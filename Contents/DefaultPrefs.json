@@ -54,26 +54,6 @@
         "default": "=E="
     },
     {
-        "id": "Transum",
-        "label": "翻译简介",
-        "type": "enum",
-        "values": [
-            "开启",
-            "关闭"
-        ],
-        "default": "关闭"
-    },
-    {
-        "id": "Trantitle",
-        "label": "翻译标题",
-        "type": "enum",
-        "values": [
-            "开启",
-            "关闭"
-        ],
-        "default": "关闭"
-    },
-    {
         "id": "Title_jp",
         "label": "日本AV标题样式",
         "type": "enum",
@@ -104,5 +84,35 @@
             "反序"
         ],
         "default": "默认"
+    },
+    {
+        "id": "Trantitle",
+        "label": "标题翻译（不支持欧美）",
+        "type": "enum",
+        "values": [
+            "开启",
+            "关闭"
+        ],
+        "default": "关闭"
+    },
+    {
+        "id": "Transum",
+        "label": "简介翻译",
+        "type": "enum",
+        "values": [
+            "开启",
+            "关闭"
+        ],
+        "default": "关闭"
+    },
+    {
+        "id": "BKNFO",
+        "label": "_____________________________________________________________________________________\n本地化备份海报，演员 , 媒体信息:\n开启该功能会生成nfo、jpg文件并且会强制将媒体文件移动至同名目录。\n同名目录不存在则创建同名目录。",
+        "type": "enum",
+        "values": [
+            "开启",
+            "关闭"
+        ],
+        "default": "关闭"
     }
 ]

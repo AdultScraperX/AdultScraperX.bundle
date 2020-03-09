@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
 import os
+import shutil
 import io
 import fnmatch
 import re
 import base64
 import json
+import urllib
 from datetime import datetime
 
+
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Beta1.1.2'
+NAME = 'AdultScraperX Beta1.2.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
+
+# HTTP
+timeout = 3600
 
 
 def Start():
@@ -26,12 +32,14 @@ class AdultScraperXAgent(Agent.Movies):
         'com.plexapp.agents.localmedia',
         'com.plexapp.agents.opensubtitles',
         'com.plexapp.agents.podnapisi',
-        'com.plexapp.agents.subzero'
+        'com.plexapp.agents.subzero',        
+        'com.plexapp.agents.xbmcnfo'
     ]
     contributes_to = [
         'com.plexapp.agents.themoviedb',
         'com.plexapp.agents.imdb',
-        'com.plexapp.agents.data18'
+        'com.plexapp.agents.data18',
+        'com.plexapp.agents.xbmcnfo'
     ]
 
     def search(self, results, media, lang, manual):
@@ -64,8 +72,6 @@ class AdultScraperXAgent(Agent.Movies):
         Log("本地文件判别类型标记：%s" % dirTagLine)
 
         if dirTagLine != None:
-
-            timeout = 300
 
             if manual:
 
@@ -186,6 +192,9 @@ class AdultScraperXAgent(Agent.Movies):
 
         '在标语处显示来源元数据站点'
         metadata.tagline = webkey
+        number = ''
+        poster = None
+        art = None
         for i, media_item in enumerate(data):
             if media_item == 'm_number':
                 number = data.get(media_item)
@@ -201,22 +210,52 @@ class AdultScraperXAgent(Agent.Movies):
                             if Prefs['Title_jp_anime'] == '番号':
                                 metadata.title = number
                             elif Prefs['Title_jp_anime'] == '标题':
-                                metadata.title = data['m_title']
-                            elif Prefs['Title_jp_anime'] == '番号,标题':
-                                metadata.title = '%s %s' % (
-                                    number, data['m_title'])
-                        else:
-                            if Prefs['Title_jp'] == '番号':
-                                metadata.title = number
-                            elif Prefs['Title_jp'] == '标题':
-
                                 if Prefs['Trantitle'] == '开启':
                                     Log("标题翻译：开启")
                                     HTTP.ClearCache()
                                     HTTP.CacheTime = CACHE_1MONTH
                                     tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
                                         data['m_title']).replace('/', ';<*'))
-                                    if not data['m_title']=='':
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = tran_title
+                                    else:
+                                        metadata.title = data['m_title']
+                                else:
+                                    metadata.title = data['m_title']
+
+                            elif Prefs['Title_jp_anime'] == '番号,标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = '%s %s' % (
+                                            number, tran_title)
+                                    else:
+                                        metadata.title = '%s %s' % (
+                                            number, data['m_title'])
+                                else:
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
+                        else:
+                            if Prefs['Title_jp'] == '番号':
+                                metadata.title = number
+                            elif Prefs['Title_jp'] == '标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
                                         Log('翻译连接：%s', tran_url)
                                         tran_title = HTTP.Request(
                                             tran_url, timeout=timeout).content
@@ -227,27 +266,27 @@ class AdultScraperXAgent(Agent.Movies):
                                     metadata.title = data['m_title']
 
                             elif Prefs['Title_jp'] == '番号,标题':
-                                metadata.title = '%s %s' % (
-                                    number, data['m_title'])
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = '%s %s' % (
+                                            number, tran_title)
+                                    else:
+                                        metadata.title = '%s %s' % (
+                                            number, data['m_title'])
+                                else:
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
 
             if media_item == 'm_title':
-
-                if Prefs['Trantitle'] == '开启':
-                    Log("标题翻译：开启")
-                    HTTP.ClearCache()
-                    HTTP.CacheTime = CACHE_1MONTH
-                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'],
-                                                  dirTagLine, base64.b64encode(data.get(media_item)).replace('/', ';<*'))
-
-                    if not data.get(media_item) == '':
-                        Log('翻译连接：%s', tran_url)
-                        tran_title = HTTP.Request(
-                            tran_url, timeout=timeout).content
-                        metadata.original_title = tran_title
-                    else:
-                        metadata.original_title = data.get(media_item)
-                else:
-                    metadata.original_title = data.get(media_item)
+                metadata.original_title = data.get(media_item)
 
             if media_item == 'm_summary':
 
@@ -262,7 +301,7 @@ class AdultScraperXAgent(Agent.Movies):
                         tran_summary = HTTP.Request(
                             tran_url, timeout=timeout).content
                         metadata.summary = tran_summary
-                    else:                        
+                    else:
                         metadata.summary = data.get(media_item)
                 else:
                     metadata.summary = data.get(media_item)
@@ -308,16 +347,16 @@ class AdultScraperXAgent(Agent.Movies):
                     'webkey': webkey.lower()
                 }
                 poster_data_json = json.dumps(poster_data)
-                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                        Prefs['Service_Port'], base64.b64encode(poster_data_json))
-                Log('海报：%s' % url)
-                poster = None
+                purl = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                         Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                Log('海报：%s' % purl)
                 try:
-                    poster = HTTP.Request(url, timeout=timeout).content
+                    poster = HTTP.Request(purl, timeout=timeout).content
                 except Exception as ex:
-                    Log('捕获异常：%s:%s' % (ex, url))
+                    Log('捕获异常：%s:%s' % (ex, purl))
                 if not poster == None:
-                    metadata.posters[url] = Proxy.Media(poster)
+                    metadata.posters[purl] = Proxy.Media(poster)
+                    ioposter = Proxy.Media(poster)
 
             if media_item == 'm_art_url':
                 art_url = data.get(media_item)
@@ -328,12 +367,11 @@ class AdultScraperXAgent(Agent.Movies):
                     'webkey': webkey.lower()
                 }
                 art_data_json = json.dumps(art_data)
-                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
                                         Prefs['Service_Port'], base64.b64encode(art_data_json))
                 Log('背景：%s' % url)
-                art = None
                 try:
-                    art = HTTP.Request(url, timeout=timeout).content
+                    art = HTTP.Request(aurl, timeout=timeout).content
                 except Exception as ex:
                     Log('捕获异常：%s:%s' % (ex, url))
                 if not art == None:
@@ -356,13 +394,142 @@ class AdultScraperXAgent(Agent.Movies):
                             art_data_json = json.dumps(art_data)
                             url = '%s:%s/img/%s' % (Prefs['Service_IP'],
                                                     Prefs['Service_Port'], base64.b64encode(art_data_json))
-                            Log('演员头像：%s' % url)
+                            Log('演员 %s 头像：%s' % (role.name, url))
                             role.photo = url
 
         # 设置影片级别
         metadata.content_rating = 'R18'
+        if Prefs['BKNFO'] == '开启':
+            self.createNFO(metadata, media, number, poster, purl, art, aurl)
+
         Log('更新媒体信息 ：【%s】 结束' % m_id)
         Log('======结束执行更新媒体信息======')
+
+    def createNFO(self, metadata, media, number, poster, purl, art, aurl):
+        Log('开始生成NFO文件，海报 , 演员图片')
+
+        xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        xml = xml + '<movie>\n'
+        # 标题
+        xml = xml + '<title>%s</title>\n' % metadata.title
+        xml = xml + '<originaltitle>%s</originaltitle>\n' % metadata.original_title
+        # 简介
+        xml = xml + '<outline>%s</outline>\n' % metadata.summary
+        # 标语
+        xml = xml+'<tagline>%s</tagline>\n' % metadata.tagline
+        # 影片年份
+        xml = xml + '<year>%s</year>\n' % metadata.year
+        # 上映日期
+        xml = xml+'<premiered>%s</premiered>\n' % metadata.originally_available_at
+        # 级别
+        xml = xml+'<mpaa>R18</mpaa>\n'
+
+        # 类型
+        for genre in metadata.genres:
+            xml = xml + '<genre>%s</genre>\n' % genre
+
+        # 工作室
+        '<studio>%s</studio>\n' % metadata.studio
+        # 导演
+        for director in metadata.directors:
+            xml = xml + '<director>%s</director>\n' % director.name
+
+        # 系列
+        for collections in metadata.collections:
+            if not collections == None or collections == '':
+                xml = xml+'<collections>%s</collections>\n' % collections
+
+        # 同名目录没有则创建
+        # src文件名拆分
+        filepathlist = media.items[0].parts[0].file.split('/')        
+        Log('src文件名拆分：%s' % filepathlist)
+
+        # 文件名+后缀
+        filenameall = filepathlist[len(filepathlist)-1]
+        Log('文件名+后缀：%s' % filenameall)
+
+        # 文件名
+        filename = filenameall.split('.')[0]
+        Log('文件名：%s' % filename)
+
+        # 原文件全路径
+        srcfilepath = os.path.join(media.items[0].parts[0].file)
+        Log('原文件全路径： %s' % srcfilepath)
+
+        # 新文件路径
+        ftmp = srcfilepath.replace('/'+filenameall, '').replace('/'+number, '')
+        newfilepath = ftmp+'/'+number
+        Log('新文件路径：%s' % newfilepath)
+
+        if not os.path.exists(newfilepath):
+            try:
+                os.makedirs(newfilepath)
+                Log('创建 %s 目录：%s' % (number, newfilepath))
+            except Exception as ex:
+                Log('创建目录发生异常：%s \r\n %s ' % (newfilepath, ex))
+
+        # 演员
+        actor_path = newfilepath+'/.actors'
+        for role in metadata.roles:
+            xml = xml + '<actor>\n'
+            xml = xml + '<name>%s</name>\n' % role.name
+            try:
+                if not os.path.exists(actor_path):
+                    os.makedirs(actor_path)
+                    Log('创建 .actors 目录：%s' % actor_path)
+            except Exception as ex:
+                Log('创建目录发生异常：%s \r\n %s ' % (actor_path, ex))
+
+            try:
+                rolepath = os.path.join(
+                    actor_path + '/'+role.name + '-actor.jpg')
+                if not os.path.exists(rolepath):
+                    actor = HTTP.Request(role.photo, timeout=timeout).content
+                    with io.open(rolepath, 'wb') as f:
+                        f.write(actor)
+                        
+                #xml = xml + '<thumb>%s</thumb>\n' % rolepath
+                xml = xml + '<thumb>%s</thumb>\n' % role.photo
+            except Exception as ex:
+                Log('下载演员 %s 发生异常：%s' % (role.name, ex))
+            xml = xml + '</actor>\n'
+
+        # 海报
+        filepath = newfilepath + '/' + filename+'-poster'+'.jpg'
+        try:
+            if not os.path.exists(filepath):
+                with io.open(filepath, 'wb') as f:
+                    f.write(poster)
+            # xml = xml + '<thumb>%s</thumb>\n' % filepath
+            xml = xml + '<thumb>%s</thumb>\n' % purl
+        except Exception as ex:
+            Log('下载 %s 海报发生异常：%s' % (number, ex))
+        
+        # 背景
+        filepath = newfilepath + '/' + filename+'-fanart'+'.jpg'
+        try:
+            if not os.path.exists(filepath):
+                with io.open(filepath, 'wb') as f:
+                    f.write(art)
+        except Exception as ex:
+            Log('下载 %s 背景发生异常：%s' % (number, ex))
+
+        xml = xml + '</movie>'
+
+        # 保存 NFO
+        nfofilepath = newfilepath+'/'+number+'.nfo'
+        fo = io.open(nfofilepath, "w")
+        fo.write(xml)
+        fo.close()
+
+        try:
+            if not srcfilepath == newfilepath+'/'+filenameall:
+                shutil.move(srcfilepath, newfilepath)                
+                Log('文件 %s 移动至：%s' % (filenameall, newfilepath))
+            else:
+                Log('源文件： %s  与  新文件：%s  目录相同跳过移动文件' % (srcfilepath, newfilepath+'/'+filenameall))                
+        except Exception as ex:
+            Log('移动媒体文件 %s 时发生异常：%s' % (filenameall, ex))
 
     def getMediaLocalPath(self, media):
         '''
@@ -410,3 +577,24 @@ class AdultScraperXAgent(Agent.Movies):
                 extensionname = mediafilepathlist[i].split('0')[1]
 
         return extensionname
+
+    def searchFilesPath(self,filepath, fname):
+        result = []
+        # 遍历当前文件夹下面的所有文件
+        for item in os.listdir(filepath):
+            # 遍历时，拼接好当前文件的路径
+            item_path = os.path.join(filepath, item)
+
+            # 如果当前文件类型为文件夹
+            if os.path.isdir(item_path):
+                # 调用自身search递归查找
+                self.searchFilesPath(item_path, fname)
+
+            # 如果当前文件为文件
+            elif os.path.isfile(item_path):
+                # 判断fname是否在item中
+                if fname in item:
+                    # 如果在，将该文件路径加入结果reslut中
+                    result.append(item_path+';')
+        
+        return result

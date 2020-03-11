@@ -80,4 +80,47 @@ Plex端口 ：plex所使用的端口
 手动匹配时不使用正则过滤关键字，根据所输入的片名直接查询匹配
 
 
+# 常见服务器异常log输出
+## 以下请找自身网络问题：
+### error : ConnectionError(ProtocolError('Connection aborted.', OSError(0, 'Error')))
+- 网络连接断开或无法连接
+### Errno 111
+- 拒绝连接
+### Errno 110
+- 检查你的服务端是否启动
+
+## 程序抛异常怎么办？
+### Issues上报或者tg上报
+- Issues 上报问题 阐述问题并使用  \`\`\` 你的最新日志文本 \`\`\` 发表Issues （不要上传任何文件）
+- tg上报问题 阐述问题并上传你最新日志文本 .log单文件 不要压缩包
+### 以下是程序报错例子
+- 通常程序错误会出现类似于下面的内容
+```
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/site-packages/flask/app.py", line 2446, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.7/site-packages/flask/app.py", line 1951, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib/python3.7/site-packages/flask/app.py", line 1820, in handle_user_exception
+    reraise(exc_type, exc_value, tb)
+  File "/usr/local/lib/python3.7/site-packages/flask/_compat.py", line 39, in reraise
+    raise value
+  File "/usr/local/lib/python3.7/site-packages/flask/app.py", line 1949, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.7/site-packages/flask/app.py", line 1935, in dispatch_request
+    return self.view_functions[rule.endpoint](**req.view_args)
+  File "AdultScraperX-server/main.py", line 200, in getMediaInfos
+    cacheFlag)
+  File "AdultScraperX-server/main.py", line 227, in search
+    items = webSite.search(q)
+  File "/home/adultScraperX/AdultScraperX-server/app/spider/arzon.py", line 63, in search
+    html_item['html'], q)
+  File "/home/adultScraperX/AdultScraperX-server/app/spider/arzon.py", line 93, in analysisMediaHtmlByxpath
+    title = html.xpath(xpath_title)
+AttributeError: 'NoneType' object has no attribute 'xpath'
+```
+
+
+
+
 

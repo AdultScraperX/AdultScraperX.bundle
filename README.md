@@ -80,6 +80,11 @@ Plex端口 ：plex所使用的端口
 手动匹配时不使用正则过滤关键字，根据所输入的片名直接查询匹配
 
 
+# 本地备份媒体信息说明
+- 测试功能不一定好用
+- 1.2.0 初次测试备份代码
+- 目前不太稳定
+
 # 常见服务器异常log输出
 ## 以下请找自身网络问题：
 ### error : ConnectionError(ProtocolError('Connection aborted.', OSError(0, 'Error')))

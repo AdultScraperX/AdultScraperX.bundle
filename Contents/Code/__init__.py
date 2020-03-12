@@ -8,10 +8,13 @@ import base64
 import json
 import urllib
 from datetime import datetime
+from io import StringIO
 
+element_from_string = XML.ElementFromString
+load_file = Core.storage.load
 
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Beta1.2.0'
+NAME = 'AdultScraperX Beta1.3.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -32,18 +35,201 @@ class AdultScraperXAgent(Agent.Movies):
         'com.plexapp.agents.localmedia',
         'com.plexapp.agents.opensubtitles',
         'com.plexapp.agents.podnapisi',
-        'com.plexapp.agents.subzero',        
-        'com.plexapp.agents.xbmcnfo'
+        'com.plexapp.agents.subzero'
     ]
     contributes_to = [
         'com.plexapp.agents.themoviedb',
         'com.plexapp.agents.imdb',
-        'com.plexapp.agents.data18',
-        'com.plexapp.agents.xbmcnfo'
+        'com.plexapp.agents.data18'
     ]
 
     def search(self, results, media, lang, manual):
+        # 源文件路径
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
+        Log(msrcfilepath)
+        nfopath = self.searchFilesPath(msrcfilepath, '.nfo')
+        Log(nfopath)
 
+        if len(nfopath) > 0:
+            Log('查询模式：local')
+            if not self.searchLocalMediaNFO(results, media, lang, manual, nfopath):
+                self.searchOnlineMediaInfo(results, media, lang, manual)
+        else:
+            Log('查询模式：Online')
+            self.searchOnlineMediaInfo(results, media, lang, manual)
+
+    def searchLocalMediaNFO(self, results, media, lang, manual, nfopath):
+        data = {
+            "m_studio": "",
+            "m_id": "",
+            "m_actor": {},
+            "m_directors": "",
+            "m_summary": "",
+            "m_collections": "",
+            "m_number": "",
+            "m_title": "",
+            "m_category": "",
+            "m_art_url": "",
+            "m_originallyAvailableAt": "",
+            "m_year": "",
+            "m_poster": ""
+        }
+        nfo_file = nfopath[0]
+        NFO_TEXT_REGEX_1 = re.compile(
+            r'&(?![A-Za-z]+[0-9]*;|#[0-9]+;|#x[0-9a-fA-F]+;)'
+        )
+        NFO_TEXT_REGEX_2 = re.compile(r'^\s*<.*/>[\r\n]+', flags=re.MULTILINE)
+        RATING_REGEX_1 = re.compile(
+            r'(?:Rated\s)?(?P<mpaa>[A-z0-9-+/.]+(?:\s[0-9]+[A-z]?)?)?'
+        )
+        RATING_REGEX_2 = re.compile(r'\s*\(.*?\)')
+
+        nfo_text = load_file(nfo_file)
+
+        nfo_text = NFO_TEXT_REGEX_1.sub('&amp;', nfo_text)
+
+        nfo_text = NFO_TEXT_REGEX_2.sub('', nfo_text)
+
+        nfo_text_lower = nfo_text.lower()
+        if nfo_text_lower.count('<movie') > 0 and nfo_text_lower.count('</movie>') > 0:
+
+            nfo_text = '{content}</movie>'.format(
+                content=nfo_text.rsplit('</movie>', 1)[0]
+            )
+
+            # likely an xbmc nfo file
+            try:
+                nfo_xml = element_from_string(nfo_text).xpath('//movie')[0]
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # number
+            try:
+                data.update({'m_number': nfo_xml.xpath('number')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # Title
+            try:
+                data.update({'m_title': nfo_xml.xpath('title')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # original_title
+            try:
+                data.update(
+                    {'original_title': nfo_xml.xpath('originaltitle')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # summary
+            try:
+                data.update({'m_summary': nfo_xml.xpath('outline')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # year
+            try:
+                data.update({'m_year': nfo_xml.xpath('year')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # originallyAvailableAt
+            try:
+                data.update(
+                    {'m_originallyAvailableAt': nfo_xml.xpath('premiered')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # category
+            try:
+                categorys = []
+                for citem in nfo_xml.xpath('genre'):
+                    categorys.append(citem.text)
+                if categorys[0] == None:
+                    categorys = ''
+                data.update({'m_category': ','.join(categorys)})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # director
+            try:
+                data.update({'m_directors': nfo_xml.xpath('director')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # collections
+            try:
+                collections = []
+                for colitem in nfo_xml.xpath('collections'):
+                    collections.append(colitem.text)
+                if collections[0] == None:
+                    collections = ''
+                data.update({'m_collections': collections})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # poster
+            try:
+                data.update({'m_poster': nfo_xml.xpath('thumb')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # actor
+            actors = nfo_xml.xpath('actor')
+            items = {}
+            try:
+                for actor in actors:
+                    items.update(
+                        {actor.xpath('name')[0].text: actor.xpath('thumb')[0].text})
+                data.update({'m_actor': items})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # dirTagLine
+            try:
+                data.update(
+                    {'dirtagline': nfo_xml.xpath('dirtagline')[0].text})
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            jsondata = json.dumps(data)
+
+            Log('查询结果数据：%s' % jsondata)
+
+            id = data['m_number']
+            wk = 'NFO'
+            name = '%s : %s' % (wk, data['m_title'])
+            media_d = jsondata
+            dirTagLine = data['dirtagline']
+
+            id = base64.b64encode('%s|A|%s|%s|%s' % (
+                id, wk, media_d, dirTagLine))
+            score = 100
+            new_result = dict(id=id, name=name,
+                              year='', score=score, lang=lang)
+            results.Append(MetadataSearchResult(**new_result))
+
+            Log('匹配数据结果：%s 【success】' % data['m_number'])
+            return True
+        else:
+            return False
+
+    def searchOnlineMediaInfo(self, results, media, lang, manual):
         Log('======开始查询======')
         # 获取path
         dirTagLine = None
@@ -103,10 +289,12 @@ class AdultScraperXAgent(Agent.Movies):
                             media_d = ''
                             wk = data_list_key
                             data = json_data.get(data_list_key)
+                            data.update(original_title='')
                             for item_key in data:
                                 if item_key == 'm_number':
                                     id = data.get(item_key)
                                 if item_key == 'm_title':
+                                    data['original_title'] = data['m_title']
                                     poster_url = data['m_poster']
                                     poster_data = {
                                         'mode': 'poster',
@@ -155,10 +343,13 @@ class AdultScraperXAgent(Agent.Movies):
                         for webkey in data:
                             media_dict = data.get(webkey)
                             wk = webkey
+                            media_dict.update(original_title='')
                             for item_key in media_dict:
                                 if item_key == 'm_number':
                                     id = media_dict.get(item_key)
                                 if item_key == 'm_title':
+                                    media_dict['original_title'] = media_dict.get(
+                                        item_key)
                                     name = media_dict.get(item_key)
 
                             media_d = json.dumps(media_dict)
@@ -175,6 +366,8 @@ class AdultScraperXAgent(Agent.Movies):
         Log('======结束查询======')
 
     def update(self, metadata, media, lang):
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
         Log('======开始执行更新媒体信息======')
         timeout = 300
         metadata_list = base64.b64decode(metadata.id).split('|')
@@ -285,7 +478,7 @@ class AdultScraperXAgent(Agent.Movies):
                                     metadata.title = '%s %s' % (
                                         number, data['m_title'])
 
-            if media_item == 'm_title':
+            if media_item == 'original_title':
                 metadata.original_title = data.get(media_item)
 
             if media_item == 'm_summary':
@@ -339,43 +532,60 @@ class AdultScraperXAgent(Agent.Movies):
                     metadata.genres.add(genres_name)
 
             if media_item == 'm_poster':
-                poster_url = data.get(media_item)
+                if webkey == 'NFO':
+                    posterpath = self.searchFilesPath(
+                        msrcfilepath, '-poster.jpg')[0]
+                    try:
+                        metadata.posters[posterpath] = Proxy.Media(
+                            load_file(posterpath))
+                    except Exception as ex:
+                        Log('捕获异常：%s:%s' % (ex, posterpath))
+                else:
+                    poster_url = data.get(media_item)
 
-                poster_data = {
-                    'mode': 'poster',
-                    'url': poster_url,
-                    'webkey': webkey.lower()
-                }
-                poster_data_json = json.dumps(poster_data)
-                purl = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                         Prefs['Service_Port'], base64.b64encode(poster_data_json))
-                Log('海报：%s' % purl)
-                try:
-                    poster = HTTP.Request(purl, timeout=timeout).content
-                except Exception as ex:
-                    Log('捕获异常：%s:%s' % (ex, purl))
-                if not poster == None:
-                    metadata.posters[purl] = Proxy.Media(poster)
-                    ioposter = Proxy.Media(poster)
+                    poster_data = {
+                        'mode': 'poster',
+                        'url': poster_url,
+                        'webkey': webkey.lower()
+                    }
+                    poster_data_json = json.dumps(poster_data)
+                    purl = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                    Log('海报：%s' % purl)
+                    try:
+                        poster = HTTP.Request(purl, timeout=timeout).content
+                    except Exception as ex:
+                        Log('海报捕获异常：%s:%s' % (ex, purl))
+                    if not poster == None:
+                        metadata.posters[purl] = Proxy.Media(poster)
 
             if media_item == 'm_art_url':
-                art_url = data.get(media_item)
+                if webkey == 'NFO':
+                    artpath = self.searchFilesPath(
+                        msrcfilepath, '-fanart.jpg')[0]
+                    try:
+                        metadata.posters[artpath] = Proxy.Media(
+                            load_file(artpath))
+                    except Exception as ex:
+                        Log('捕获异常：%s:%s' % (ex, artpath))
+                else:
+                    art_url = data.get(media_item)
 
-                art_data = {
-                    'mode': 'art',
-                    'url': art_url,
-                    'webkey': webkey.lower()
-                }
-                art_data_json = json.dumps(art_data)
-                aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
-                Log('背景：%s' % url)
-                try:
-                    art = HTTP.Request(aurl, timeout=timeout).content
-                except Exception as ex:
-                    Log('捕获异常：%s:%s' % (ex, url))
-                if not art == None:
-                    metadata.art[url] = Proxy.Media(art)
+                    art_data = {
+                        'mode': 'art',
+                        'url': art_url,
+                        'webkey': webkey.lower()
+                    }
+                    art_data_json = json.dumps(art_data)
+                    aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(art_data_json))
+                    Log('背景：%s' % url)
+                    try:
+                        art = HTTP.Request(aurl, timeout=timeout).content
+                    except Exception as ex:
+                        Log('背景捕获异常：%s:%s' % (ex, url))
+                    if not art == None:
+                        metadata.art[url] = Proxy.Media(art)
 
             if media_item == 'm_actor':
                 metadata.roles.clear()
@@ -392,24 +602,37 @@ class AdultScraperXAgent(Agent.Movies):
                                 'webkey': webkey.lower()
                             }
                             art_data_json = json.dumps(art_data)
-                            url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                                    Prefs['Service_Port'], base64.b64encode(art_data_json))
-                            Log('演员 %s 头像：%s' % (role.name, url))
+
+                            if webkey == 'NFO':
+                                url = imgurl
+                            else:
+                                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
+                                Log('演员 %s 头像：%s' % (role.name, url))
+
                             role.photo = url
 
         # 设置影片级别
         metadata.content_rating = 'R18'
-        if Prefs['BKNFO'] == '开启':
-            self.createNFO(metadata, media, number, poster, purl, art, aurl)
+        if not webkey == 'NFO':
+            if Prefs['BKNFO'] == '开启':
+                self.createNFO(metadata, media, number, poster,
+                               purl, art, aurl, dirTagLine)
 
         Log('更新媒体信息 ：【%s】 结束' % m_id)
         Log('======结束执行更新媒体信息======')
 
-    def createNFO(self, metadata, media, number, poster, purl, art, aurl):
+    def createNFO(self, metadata, media, number, poster, purl, art, aurl, dirtagline):
         Log('开始生成NFO文件，海报 , 演员图片')
 
         xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         xml = xml + '<movie>\n'
+
+        # dirtagline
+        xml = xml + '<dirtagline>%s</dirtagline>\n' % dirtagline
+
+        # number
+        xml = xml + '<number>%s</number>\n' % number
         # 标题
         xml = xml + '<title>%s</title>\n' % metadata.title
         xml = xml + '<originaltitle>%s</originaltitle>\n' % metadata.original_title
@@ -441,7 +664,7 @@ class AdultScraperXAgent(Agent.Movies):
 
         # 同名目录没有则创建
         # src文件名拆分
-        filepathlist = media.items[0].parts[0].file.split('/')        
+        filepathlist = media.items[0].parts[0].file.split('/')
         Log('src文件名拆分：%s' % filepathlist)
 
         # 文件名+后缀
@@ -468,6 +691,25 @@ class AdultScraperXAgent(Agent.Movies):
             except Exception as ex:
                 Log('创建目录发生异常：%s \r\n %s ' % (newfilepath, ex))
 
+        # 移动所有同名文件
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
+        Log(msrcfilepath)
+        msrcfilepaths = self.searchFilesPath(msrcfilepath, number)
+        Log(msrcfilepaths)
+        for file_path in msrcfilepaths:
+            try:
+                if not os.path.exists(newfilepath+'/'+file_path.split('/')[len(file_path.split('/'))-1]):
+                    shutil.move(file_path, newfilepath)
+                    Log('文件 %s 移动至：%s' % (file_path, newfilepath+'/' +
+                                          file_path.split('/')[len(file_path.split('/'))-1]))
+                else:
+                    Log('文件  %s  已存在' % (newfilepath+'/' +
+                                         file_path.split('/')[len(file_path.split('/'))-1]))
+            except Exception as ex:
+                Log('移动媒体文件 %s 时发生异常：%s' % (newfilepath+'/' +
+                                            file_path.split('/')[len(file_path.split('/'))-1], ex))
+
         # 演员
         actor_path = newfilepath+'/.actors'
         for role in metadata.roles:
@@ -484,11 +726,22 @@ class AdultScraperXAgent(Agent.Movies):
                 rolepath = os.path.join(
                     actor_path + '/'+role.name + '-actor.jpg')
                 if not os.path.exists(rolepath):
-                    actor = HTTP.Request(role.photo, timeout=timeout).content
-                    with io.open(rolepath, 'wb') as f:
-                        f.write(actor)
-                        
-                #xml = xml + '<thumb>%s</thumb>\n' % rolepath
+                    actor_download_count = 1
+                    for index in range(int(Prefs['Cycles'])):
+                        Log('尝试头像 %s 第 %s/%s 次下载' %
+                            (role.name, int(index+1), Prefs['Cycles']))
+                        actor = HTTP.Request(
+                            role.photo, timeout=timeout).content
+                        with io.open(rolepath, 'wb') as f:
+                            f.write(actor)
+                        if os.path.getsize(rolepath) > 1:
+                            Log('头像 %s 下载完成' % role.name)
+                            break
+                        elif actor_download_count == int(Prefs['Cycles']):
+                            Log('头像 %s 下载失败' % role.name)
+                            break
+                        else:
+                            actor_download_count = int(actor_download_count+1)
                 xml = xml + '<thumb>%s</thumb>\n' % role.photo
             except Exception as ex:
                 Log('下载演员 %s 发生异常：%s' % (role.name, ex))
@@ -498,19 +751,47 @@ class AdultScraperXAgent(Agent.Movies):
         filepath = newfilepath + '/' + filename+'-poster'+'.jpg'
         try:
             if not os.path.exists(filepath):
-                with io.open(filepath, 'wb') as f:
-                    f.write(poster)
-            # xml = xml + '<thumb>%s</thumb>\n' % filepath
+                poster_download_count = 1
+                for index in range(int(Prefs['Cycles'])):
+                    Log('尝试海报 %s 第 %s/%s 次下载' %
+                        (number, int(index+1), Prefs['Cycles']))
+                    poster = HTTP.Request(
+                        purl, timeout=timeout).content
+                    with io.open(filepath, 'wb') as f:
+                        f.write(poster)
+                    if os.path.getsize(rolepath) > 1:
+                        Log('海报 %s 下载完成' % number)
+                        break
+                    elif poster_download_count == int(Prefs['Cycles']):
+                        Log('海报 %s 下载失败' % number)
+                        break
+                    else:
+                        poster_download_count = int(poster_download_count+1)
             xml = xml + '<thumb>%s</thumb>\n' % purl
         except Exception as ex:
             Log('下载 %s 海报发生异常：%s' % (number, ex))
-        
+
         # 背景
         filepath = newfilepath + '/' + filename+'-fanart'+'.jpg'
         try:
             if not os.path.exists(filepath):
-                with io.open(filepath, 'wb') as f:
-                    f.write(art)
+                art_download_count = 1
+                for index in range(int(Prefs['Cycles'])):
+                    Log('尝试背景 %s 第 %s/%s 次下载' %
+                        (number, int(index+1), Prefs['Cycles']))
+                    art = HTTP.Request(
+                        aurl, timeout=timeout).content
+                    with io.open(filepath, 'wb') as f:
+                        f.write(art)
+                    if os.path.getsize(rolepath) > 1:
+                        Log('背景 %s 下载完成' % number)
+                        break
+                    elif art_download_count == int(Prefs['Cycles']):
+                        Log('背景 %s 下载失败' % number)
+                        break
+                    else:
+                        art_download_count = int(art_download_count+1)
+                
         except Exception as ex:
             Log('下载 %s 背景发生异常：%s' % (number, ex))
 
@@ -521,15 +802,6 @@ class AdultScraperXAgent(Agent.Movies):
         fo = io.open(nfofilepath, "w")
         fo.write(xml)
         fo.close()
-
-        try:
-            if not srcfilepath == newfilepath+'/'+filenameall:
-                shutil.move(srcfilepath, newfilepath)                
-                Log('文件 %s 移动至：%s' % (filenameall, newfilepath))
-            else:
-                Log('源文件： %s  与  新文件：%s  目录相同跳过移动文件' % (srcfilepath, newfilepath+'/'+filenameall))                
-        except Exception as ex:
-            Log('移动媒体文件 %s 时发生异常：%s' % (filenameall, ex))
 
     def getMediaLocalPath(self, media):
         '''
@@ -578,7 +850,7 @@ class AdultScraperXAgent(Agent.Movies):
 
         return extensionname
 
-    def searchFilesPath(self,filepath, fname):
+    def searchFilesPath(self, filepath, fname):
         result = []
         # 遍历当前文件夹下面的所有文件
         for item in os.listdir(filepath):
@@ -593,8 +865,8 @@ class AdultScraperXAgent(Agent.Movies):
             # 如果当前文件为文件
             elif os.path.isfile(item_path):
                 # 判断fname是否在item中
-                if fname in item:
+                if fname.lower() in item.lower():
                     # 如果在，将该文件路径加入结果reslut中
-                    result.append(item_path+';')
-        
+                    result.append(item_path+'')
+
         return result

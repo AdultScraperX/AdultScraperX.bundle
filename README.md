@@ -91,10 +91,10 @@ Plex端口 ：plex所使用的端口
 ## 以下请找自身网络问题：
 ### error : ConnectionError(ProtocolError('Connection aborted.', OSError(0, 'Error')))
 - 网络连接断开或无法连接
-### Errno 111
-- 拒绝连接
-### Errno 110
+### URLError: <urlopen error \[Errno 111\] Connection refused>
 - 检查你的服务端是否启动
+### URLError: <urlopen error \[Errno 110\]
+- 拒绝连接
 ### 海报、背景、头像出现黑板无图
 - 网络异常或中断导致图像没有返回，需要在网络稳定时候重新刷新元数据
 

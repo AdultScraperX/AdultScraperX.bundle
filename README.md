@@ -89,6 +89,9 @@ Plex端口 ：plex所使用的端口
 - 1.3.1 稳定工作
 
 # 常见服务器异常log输出
+## 权限问题
+### \[Errno 13\] Permission denied:
+- 没有权限操作目录
 ## 以下请找自身网络问题：
 ### error : ConnectionError(ProtocolError('Connection aborted.', OSError(0, 'Error')))
 - 网络连接断开或无法连接

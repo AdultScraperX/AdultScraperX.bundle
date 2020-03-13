@@ -7,6 +7,7 @@ import re
 import base64
 import json
 import urllib
+import time
 from datetime import datetime
 from io import StringIO
 
@@ -503,6 +504,7 @@ class AdultScraperXAgent(Agent.Movies):
                 metadata.studio = data.get(media_item)
 
             if media_item == 'm_collections':
+                metadata.collections.clear()
                 metadata.collections.add(data.get(media_item))
 
             if media_item == 'm_originallyAvailableAt':
@@ -579,13 +581,13 @@ class AdultScraperXAgent(Agent.Movies):
                     art_data_json = json.dumps(art_data)
                     aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
                                              Prefs['Service_Port'], base64.b64encode(art_data_json))
-                    Log('背景：%s' % url)
+                    Log('背景：%s' % aurl)
                     try:
                         art = HTTP.Request(aurl, timeout=timeout).content
                     except Exception as ex:
-                        Log('背景捕获异常：%s:%s' % (ex, url))
+                        Log('背景捕获异常：%s:%s' % (ex, aurl))
                     if not art == None:
-                        metadata.art[url] = Proxy.Media(art)
+                        metadata.art[aurl] = Proxy.Media(art)
 
             if media_item == 'm_actor':
                 metadata.roles.clear()
@@ -611,6 +613,8 @@ class AdultScraperXAgent(Agent.Movies):
                                 Log('演员 %s 头像：%s' % (role.name, url))
 
                             role.photo = url
+                        else:
+                            role.photo = ''
 
         # 设置影片级别
         metadata.content_rating = 'R18'
@@ -726,23 +730,25 @@ class AdultScraperXAgent(Agent.Movies):
                 rolepath = os.path.join(
                     actor_path + '/'+role.name + '-actor.jpg')
                 if not os.path.exists(rolepath):
-                    actor_download_count = 1
-                    for index in range(int(Prefs['Cycles'])):
-                        Log('尝试头像 %s 第 %s/%s 次下载' %
-                            (role.name, int(index+1), Prefs['Cycles']))
-                        actor = HTTP.Request(
-                            role.photo, timeout=timeout).content
-                        with io.open(rolepath, 'wb') as f:
-                            f.write(actor)
-                        if os.path.getsize(rolepath) > 1:
-                            Log('头像 %s 下载完成' % role.name)
-                            break
-                        elif actor_download_count == int(Prefs['Cycles']):
-                            Log('头像 %s 下载失败' % role.name)
-                            break
-                        else:
-                            actor_download_count = int(actor_download_count+1)
-                xml = xml + '<thumb>%s</thumb>\n' % role.photo
+                    if not role.photo == '':
+                        actor_download_count = 1
+                        for index in range(int(Prefs['Cycles'])):
+                            Log('尝试头像 %s 第 %s/%s 次下载' %
+                                (role.name, int(index+1), Prefs['Cycles']))
+                            actor = HTTP.Request(
+                                role.photo, timeout=timeout).content
+                            with io.open(rolepath, 'wb') as f:
+                                f.write(actor)
+                            if os.path.getsize(rolepath) > 1:
+                                Log('头像 %s 下载完成' % role.name)
+                                break
+                            elif actor_download_count == int(Prefs['Cycles']):
+                                Log('头像 %s 下载失败' % role.name)
+                                break
+                            else:
+                                actor_download_count = int(
+                                    actor_download_count+1)
+                        xml = xml + '<thumb>%s</thumb>\n' % role.photo
             except Exception as ex:
                 Log('下载演员 %s 发生异常：%s' % (role.name, ex))
             xml = xml + '</actor>\n'
@@ -758,8 +764,8 @@ class AdultScraperXAgent(Agent.Movies):
                     poster = HTTP.Request(
                         purl, timeout=timeout).content
                     with io.open(filepath, 'wb') as f:
-                        f.write(poster)
-                    if os.path.getsize(rolepath) > 1:
+                        f.write(poster)                    
+                    if os.path.getsize(filepath) > 1:
                         Log('海报 %s 下载完成' % number)
                         break
                     elif poster_download_count == int(Prefs['Cycles']):
@@ -783,7 +789,7 @@ class AdultScraperXAgent(Agent.Movies):
                         aurl, timeout=timeout).content
                     with io.open(filepath, 'wb') as f:
                         f.write(art)
-                    if os.path.getsize(rolepath) > 1:
+                    if os.path.getsize(filepath) > 1:
                         Log('背景 %s 下载完成' % number)
                         break
                     elif art_download_count == int(Prefs['Cycles']):
@@ -791,7 +797,7 @@ class AdultScraperXAgent(Agent.Movies):
                         break
                     else:
                         art_download_count = int(art_download_count+1)
-                
+
         except Exception as ex:
             Log('下载 %s 背景发生异常：%s' % (number, ex))
 

@@ -15,7 +15,7 @@ element_from_string = XML.ElementFromString
 load_file = Core.storage.load
 
 PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Beta1.3.0'
+NAME = 'AdultScraperX Beta1.3.2'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'

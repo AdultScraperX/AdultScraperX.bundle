@@ -86,6 +86,7 @@ Plex端口 ：plex所使用的端口
 - 1.3.0开始支持混合搜索 local or online （仍然是测试）
 - 若存在nfo，优先匹配nfo不会在线匹配，除非出抛异常或者没有nfo才会进行在线匹配。想要强制在线匹配需要删除nfo文件
 - 这弄能目前不稳定
+- 1.3.1 稳定工作
 
 # 常见服务器异常log输出
 ## 以下请找自身网络问题：
@@ -93,7 +94,7 @@ Plex端口 ：plex所使用的端口
 - 网络连接断开或无法连接
 ### URLError: <urlopen error \[Errno 111\] Connection refused>
 - 检查你的服务端是否启动
-### URLError: <urlopen error \[Errno 110\]
+### HTTP Error 403: Forbidden
 - 拒绝连接
 ### 海报、背景、头像出现黑板无图
 - 网络异常或中断导致图像没有返回，需要在网络稳定时候重新刷新元数据

@@ -89,6 +89,9 @@ Plex端口 ：plex所使用的端口
 - 1.3.2 基本稳定工作
 
 # 常见服务器异常log输出
+## 服务端问题
+### HTTPError: HTTP Error 500: INTERNAL SERVER ERROR
+- 查看服务端日志
 ## 权限问题
 ### \[Errno 13\] Permission denied:
 - 没有权限操作目录

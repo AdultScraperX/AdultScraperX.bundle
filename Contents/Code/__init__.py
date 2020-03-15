@@ -10,12 +10,13 @@ import urllib
 import time
 from datetime import datetime
 from io import StringIO
+from lxml import etree
 
 element_from_string = XML.ElementFromString
 load_file = Core.storage.load
 
-PREFIX = '/video/libraryupdater'
-NAME = 'AdultScraperX Beta1.3.2'
+PREFIX = '/video/AdultScraperX'
+NAME = 'AdultScraperX Beta1.5.0'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -48,17 +49,103 @@ class AdultScraperXAgent(Agent.Movies):
         # 源文件路径
         msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
                                     0:len(media.items[0].parts[0].file.split('/'))-1]))
-        Log(msrcfilepath)
+        Log('源文件路径：%s' % msrcfilepath)
         nfopath = self.searchFilesPath(msrcfilepath, '.nfo')
-        Log(nfopath)
 
-        if len(nfopath) > 0:
-            Log('查询模式：local')
-            if not self.searchLocalMediaNFO(results, media, lang, manual, nfopath):
-                self.searchOnlineMediaInfo(results, media, lang, manual)
-        else:
-            Log('查询模式：Online')
+        if len(re.findall('--checkState', media.name)) > 0 or len(re.findall('--checkSpider', media.name)) > 0 or len(re.findall('--nore', media.name)) > 0:
+            Log('命令模式：开启')
             self.searchOnlineMediaInfo(results, media, lang, manual)
+        else:
+            if len(nfopath) > 0:
+                Log('查询模式：local')
+                if not self.searchLocalMediaNFO(results, media, lang, manual, nfopath):
+                    self.searchOnlineMediaInfo(results, media, lang, manual)
+            else:
+                Log('查询模式：Online')
+                self.searchOnlineMediaInfo(results, media, lang, manual)
+
+    def assrtDownSubTitle(self, number, path):
+        # 射手
+        assrt_domain = 'https://assrt.net'
+        assrt_search_url = assrt_domain+'/sub/?searchword='+number
+        assrt_down_url = assrt_domain+'/download/****/-/**/*.*'
+        assrt_diteall_paths = ''
+        try:
+            # 搜索字幕
+            HTTP.ClearCache()
+            HTTP.CacheTime = CACHE_1MONTH
+            assrt_result = HTTP.Request(
+                assrt_search_url, timeout=timeout).content
+            rep_html = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">'
+            assrt_result = assrt_result.replace(rep_html, '')
+            rep_html = '<html xmlns:wb="http://open.weibo.com/wb" lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+            assrt_result = assrt_result.replace(rep_html, '<html>')
+            rep_html = r'<!--<base href="/search2/%E7%94%9F%E6%B4%BB%E5%A4%A7%E7%88%86%E7%82%B8/">-->'
+            assrt_result = assrt_result.replace(rep_html, '')
+            assrt_diteall_paths = etree.HTML(assrt_result).xpath(
+                '//div[@class="sublist_box_title"]//a/@href')
+        except Exception as ex:
+            Log(ex)
+
+        if len(assrt_diteall_paths) > 0:
+            Log('在assrt匹配到字幕：%s' % number)
+            try:
+                assrt_id = assrt_diteall_paths[0].split(
+                    '/')[len(assrt_diteall_paths[0].split('/'))-1].split('.')[0]
+                Log('assrt 字幕id：%s' % assrt_id)
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                assrt_result = HTTP.Request(
+                    assrt_domain+assrt_diteall_paths[0], timeout=timeout).content
+                rep_html = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">'
+                assrt_result = assrt_result.replace(rep_html, '')
+                rep_html = '<html xmlns:wb="http://open.weibo.com/wb" lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+                assrt_result = assrt_result.replace(rep_html, '<html>')
+                rep_html = r'<!--<base href="/search2/%E7%94%9F%E6%B4%BB%E5%A4%A7%E7%88%86%E7%82%B8/">-->'
+                assrt_result = assrt_result.replace(rep_html, '')
+                assrt_file_paths = etree.HTML(assrt_result).xpath(
+                    '//div[@class="waves-effect"]/@onclick')
+                if len(assrt_file_paths) > 0:
+                    art_download_count = 1
+                    for files in assrt_file_paths:
+                        try:
+                            tmps = files.replace('onthefly(', '').replace(
+                                '"', '').replace(')', '').split(',')
+                            houzhui = tmps[2].split('.')[1]
+                            if houzhui == 'ass' or houzhui == 'ssa' or houzhui == 'srt' or houzhui == 'sub' or houzhui == 'smi' or houzhui == 'idx' or houzhui == 'smi' or houzhui == 'psg':
+                                assrt_down_url = assrt_down_url.replace(
+                                    '****', tmps[0]).replace('**', tmps[1]).replace('*.*', tmps[2])
+                                HTTP.ClearCache()
+                                HTTP.CacheTime = CACHE_1MONTH
+                                assrt_result = HTTP.Request(
+                                    assrt_down_url, timeout=timeout).content
+
+                                subtitle_path = os.path.join(
+                                    path+'/'+number+'.'+tmps[2].split('.')[1])
+                                if os.path.exists(subtitle_path):
+                                    tmps = number+'.'+datetime.now().strftime('%Y-%m-%d %H:%M:%S').replace(
+                                        '-', '').replace(':', '').replace(' ', '')+'.'+tmps[2].split('.')[1]
+                                    subtitle_path = os.path.join(path+'/'+tmps)
+                                fo = io.open(subtitle_path, "w", encoding='utf-8')
+                                fo.write(u''+assrt_result)
+                                fo.close()
+                                if os.path.getsize(subtitle_path) > 1:
+                                    Log('字幕 %s 下载完成' % tmps[2].split('.')[0])
+                                    break
+                                elif art_download_count == int(Prefs['Cycles']):
+                                    Log('字幕 %s 下载失败' % tmps[2].split('.')[0])
+                                    return 1
+                                else:
+                                    art_download_count = int(art_download_count+1)
+                            else:
+                                return 1
+                        except Exception as ex:
+                            Log(ex)
+
+                else:
+                    return 1
+            except Exception as ex:
+                Log(ex)
 
     def searchLocalMediaNFO(self, results, media, lang, manual, nfopath):
         data = {
@@ -193,8 +280,12 @@ class AdultScraperXAgent(Agent.Movies):
             items = {}
             try:
                 for actor in actors:
-                    items.update(
-                        {actor.xpath('name')[0].text: actor.xpath('thumb')[0].text})
+                    if len(actor.xpath('thumb')) > 0:
+                        items.update(
+                            {actor.xpath('name')[0].text: actor.xpath('thumb')[0].text})
+                    else:
+                        items.update(
+                            {actor.xpath('name')[0].text: ''})
                 data.update({'m_actor': items})
             except Exception as ex:
                 Log(ex)
@@ -367,10 +458,16 @@ class AdultScraperXAgent(Agent.Movies):
         Log('======结束查询======')
 
     def update(self, metadata, media, lang):
+        # sections = XML.ElementFromURL(PMS_URL).xpath('//Directory')
+        # for section in sections:
+        #     key = section.get('key')
+        #     Log(key)
+        #     title = section.get('title')
+        #     Log(title)
+
         msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
                                     0:len(media.items[0].parts[0].file.split('/'))-1]))
         Log('======开始执行更新媒体信息======')
-        timeout = 300
         metadata_list = base64.b64decode(metadata.id).split('|')
         m_id = metadata_list[0]
         Log('解析base64传递数据-番号：%s' % m_id)
@@ -505,23 +602,42 @@ class AdultScraperXAgent(Agent.Movies):
 
             if media_item == 'm_collections':
                 metadata.collections.clear()
-                metadata.collections.add(data.get(media_item))
+                mediaPathSplitItems = msrcfilepath.split('/')
+                tmp = ''
+                for item in mediaPathSplitItems:
+                    if len(re.findall(Prefs['Dir_C'], item)) > 0:
+                        tmp = item
+                if len(tmp) > 0:
+                    tmp = tmp.replace(Prefs['Dir_C'], '')
+                    Log('检测到合集标志并以 %s 作为合集名' % tmp)
+                    metadata.collections.add(tmp)
+                else:
+                    if not data.get(media_item) == '':
+                        metadata.collections.add(data.get(media_item))
+                    else:
+                        metadata.collections.add('')
 
             if media_item == 'm_originallyAvailableAt':
                 try:
-                    date_object = datetime.strptime(
-                        data.get(media_item), r'%Y-%m-%d')
-                    metadata.originally_available_at = date_object
-                    Log('上映日期：%s' % date_object)
+                    if not data.get(media_item) == '':
+                        date_object = datetime.strptime(
+                            data.get(media_item).replace('/', '-'), r'%Y-%m-%d')
+                        metadata.originally_available_at = date_object
+                        Log('上映日期：%s' % date_object)
+                    else:
+                        metadata.originally_available_at = datetime.strptime(
+                            '1900-01-01', r'%Y-%m-%d')
                 except Exception as ex:
-                    Log('捕获异常：%s' % ex)
+                    Log('上映日期：捕获异常：%s', ex)
 
             if media_item == 'm_year':
                 try:
-                    metadata.year = int(data.get(media_item).split('-')[0])
-                    Log('影片年份：%s' % data.get(media_item).split('-')[0])
+                    metadata.year = int(
+                        data.get(media_item).replace('/', '-').split('-')[0])
+                    Log('影片年份：%s' % data.get(media_item).replace(
+                        '/', '-').split('-')[0])
                 except Exception as ex:
-                    Log('捕获异常：%s' % ex)
+                    Log('影片年份：%s 捕获异常：%s' % (data.get(media_item), ex))
 
             if media_item == 'm_directors':
                 metadata.directors.clear()
@@ -618,6 +734,12 @@ class AdultScraperXAgent(Agent.Movies):
 
         # 设置影片级别
         metadata.content_rating = 'R18'
+
+        # 下载字幕
+        if Prefs['SubtitleDown'] == '开启':
+            if not self.assrtDownSubTitle(number, msrcfilepath) == 1:
+                Log('匹配到字幕并下载完成')
+
         if not webkey == 'NFO':
             if Prefs['BKNFO'] == '开启':
                 self.createNFO(metadata, media, number, poster,
@@ -744,11 +866,10 @@ class AdultScraperXAgent(Agent.Movies):
                                 break
                             elif actor_download_count == int(Prefs['Cycles']):
                                 Log('头像 %s 下载失败' % role.name)
-                                break
                             else:
                                 actor_download_count = int(
                                     actor_download_count+1)
-                        xml = xml + '<thumb>%s</thumb>\n' % role.photo
+                xml = xml + '<thumb>%s</thumb>\n' % role.photo
             except Exception as ex:
                 Log('下载演员 %s 发生异常：%s' % (role.name, ex))
             xml = xml + '</actor>\n'
@@ -764,13 +885,12 @@ class AdultScraperXAgent(Agent.Movies):
                     poster = HTTP.Request(
                         purl, timeout=timeout).content
                     with io.open(filepath, 'wb') as f:
-                        f.write(poster)                    
+                        f.write(poster)
                     if os.path.getsize(filepath) > 1:
                         Log('海报 %s 下载完成' % number)
                         break
                     elif poster_download_count == int(Prefs['Cycles']):
                         Log('海报 %s 下载失败' % number)
-                        break
                     else:
                         poster_download_count = int(poster_download_count+1)
             xml = xml + '<thumb>%s</thumb>\n' % purl
@@ -794,7 +914,6 @@ class AdultScraperXAgent(Agent.Movies):
                         break
                     elif art_download_count == int(Prefs['Cycles']):
                         Log('背景 %s 下载失败' % number)
-                        break
                     else:
                         art_download_count = int(art_download_count+1)
 

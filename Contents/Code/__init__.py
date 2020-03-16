@@ -1,1125 +1,1020 @@
-# coding=utf-8
-
-"""
-XBMCnfoMoviesImporter
-
-spec'd from:
- http://wiki.xbmc.org/index.php?title=Import_-_Export_Library#Video_nfo_Files
-
-CREDITS:
-    Original code author: .......... Harley Hooligan
-    Modified by: ................... Guillaume Boudreau
-    Eden and Frodo compatibility: .. Jorge Amigo
-    Cleanup and some extensions: ... SlrG
-    Multipart filter idea: ......... diamondsw
-    Logo: .......................... CrazyRabbit
-    Krypton Rating fix: ............ F4RHaD
-    PEP 8 and refactoring: ......... Labrys
-    Subtitle support and some fixes: glitch452
-"""
-
-from datetime import datetime
+# -*- coding: utf-8 -*-
 import os
+import shutil
+import io
+import fnmatch
 import re
-import sys
-from dateutil.parser import parse
-import traceback
+import base64
+import json
 import urllib
-import urlparse
-import subtitles
+import time
+from datetime import datetime
+from io import StringIO
+from lxml import etree
 
-if sys.version_info < (3, 0):
-    from htmlentitydefs import name2codepoint
-else:
-    from html.entities import name2codepoint
-    unichr = chr  # chr is already unicode
-
-# PLEX API
-preferences = Prefs
 element_from_string = XML.ElementFromString
 load_file = Core.storage.load
-PlexAgent = Agent.Movies
-MediaProxy = Proxy.Media
-Metadata = MetadataSearchResult
-Trailer = TrailerObject
 
-COUNTRY_CODES = {
-    'Australia': 'Australia,AU',
-    'Canada': 'Canada,CA',
-    'France': 'France,FR',
-    'Germany': 'Germany,DE',
-    'Netherlands': 'Netherlands,NL',
-    'United Kingdom': 'UK,GB',
-    'United States': 'USA,',
-}
+PREFIX = '/video/AdultScraperX'
+NAME = 'AdultScraperX Beta1.5.0'
+ART = 'art-default.jpg'
+ICON = 'icon-default.png'
+PMS_URL = 'http://127.0.0.1:32400/library/sections/'
 
-PERCENT_RATINGS = {
-    'rottentomatoes',
-    'rotten tomatoes',
-    'rt',
-    'flixster',
-}
-
-NFO_TEXT_REGEX_1 = re.compile(
-    r'&(?![A-Za-z]+[0-9]*;|#[0-9]+;|#x[0-9a-fA-F]+;)'
-)
-NFO_TEXT_REGEX_2 = re.compile(r'^\s*<.*/>[\r\n]+', flags=re.MULTILINE)
-RATING_REGEX_1 = re.compile(
-    r'(?:Rated\s)?(?P<mpaa>[A-z0-9-+/.]+(?:\s[0-9]+[A-z]?)?)?'
-)
-RATING_REGEX_2 = re.compile(r'\s*\(.*?\)')
+# HTTP
+timeout = 3600
 
 
-class XBMCNFO(PlexAgent):
-    """
-    A Plex Metadata Agent for Movies.
+def Start():
+    HTTP.CacheTime = 0
 
-    Uses XBMC nfo files as the metadata source for Plex Movies.
-    """
-    name = 'XBMCnfoMoviesImporter'
-    ver = '1.1-119-g5106699-225'
+
+class AdultScraperXAgent(Agent.Movies):
+    name = NAME
+    languages = [Locale.Language.English]
     primary_provider = True
-    languages = [Locale.Language.NoLanguage]
     accepts_from = [
         'com.plexapp.agents.localmedia',
         'com.plexapp.agents.opensubtitles',
         'com.plexapp.agents.podnapisi',
-        'com.plexapp.agents.subzero',
-        'com.plexapp.agents.AdultScraperX'
+        'com.plexapp.agents.subzero'
     ]
-
     contributes_to = [
         'com.plexapp.agents.themoviedb',
         'com.plexapp.agents.imdb',
-        'com.plexapp.agents.none',
-        'com.plexapp.agents.AdultScraperX'
+        'com.plexapp.agents.data18'
     ]
 
-# ##### search function #####
-    def search(self, results, media, lang):
-        log.debug('++++++++++++++++++++++++')
-        log.debug('Entering search function')
-        log.debug('++++++++++++++++++++++++')
+    def search(self, results, media, lang, manual):
+        # 源文件路径
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
+        Log('源文件路径：%s' % msrcfilepath)
+        nfopath = self.searchFilesPath(msrcfilepath, '.nfo')
+        Log(nfopath)
 
-        log.info('{plugin} Version: {number}'.format(
-            plugin=self.name, number=self.ver))
-        log.debug('Plex Server Version: {number}'.format(
-            number=Platform.ServerVersion))
-
-        if preferences['debug']:
-            log.info ('Agents debug logging is enabled!')
+        if len(re.findall('--checkState', media.name)) > 0 or len(re.findall('--checkSpider', media.name)) > 0 or len(re.findall('--nore', media.name)) > 0:
+            Log('命令模式：开启')
+            self.searchLocalMediaNFO(results, media, lang, manual, nfopath)
+            self.searchOnlineMediaInfo(results, media, lang, manual)
         else:
-            log.info ('Agents debug logging is disabled!')
-
-        path1 = media.items[0].parts[0].file
-        log.debug('media file: {name}'.format(name=path1))
-
-        folder_path = os.path.dirname(path1)
-        log.debug('folder path: {name}'.format(name=folder_path))
-
-        # Movie name with year from folder
-        movie_name_with_year = get_movie_name_from_folder(folder_path, True)
-        # Movie name from folder
-        movie_name = get_movie_name_from_folder(folder_path, False)
-
-        nfo_names = get_related_files(path1, '.nfo')
-        nfo_names.extend([
-            # Eden / Frodo
-            '{movie}.nfo'.format(movie=movie_name_with_year),
-            '{movie}.nfo'.format(movie=movie_name),
-            # VIDEO_TS
-            os.path.join(folder_path, 'video_ts.nfo'),
-            # movie.nfo (e.g. FilmInfo!Organizer users)
-            os.path.join(folder_path, 'movie.nfo'),
-        ])
-
-        # last resort - use first found .nfo
-        nfo_files = (f for f in os.listdir(folder_path) if f.endswith('.nfo'))
-
-        try:
-            first_nfo = nfo_files.next()
-        except StopIteration:
-            log.debug('No NFO found in {path!r}'.format(path=folder_path))
-        else:
-            nfo_names.append(os.path.join(folder_path, first_nfo))
-
-        # check possible .nfo file locations
-        nfo_file = check_file_paths(nfo_names, '.nfo')
-
-        if nfo_file:
-            nfo_text = load_file(nfo_file)
-            # work around failing XML parses for things with &'s in
-            # them. This may need to go farther than just &'s....
-            nfo_text = NFO_TEXT_REGEX_1.sub('&amp;', nfo_text)
-            # remove empty xml tags from nfo
-            log.debug('Removing empty XML tags from movies nfo...')
-            nfo_text = NFO_TEXT_REGEX_2.sub('', nfo_text)
-
-            nfo_text_lower = nfo_text.lower()
-            if nfo_text_lower.count('<movie') > 0 and nfo_text_lower.count('</movie>') > 0:
-                # Remove URLs (or other stuff) at the end of the XML file
-                nfo_text = '{content}</movie>'.format(
-                    content=nfo_text.rsplit('</movie>', 1)[0]
-                )
-
-                # likely an xbmc nfo file
-                try:
-                    nfo_xml = element_from_string(nfo_text).xpath('//movie')[0]
-                except:
-                    log.debug('ERROR: Cant parse XML in {nfo}.'
-                              ' Aborting!'.format(nfo=nfo_file))
-                    return
-
-                # Title
-                try:
-                    media.name = nfo_xml.xpath('title')[0].text
-                except:
-                    log.debug('ERROR: No <title> tag in {nfo}.'
-                              ' Aborting!'.format(nfo=nfo_file))
-                    return
-                # Sort Title
-                try:
-                    media.title_sort = nfo_xml.xpath('sorttitle')[0].text
-                except:
-                    log.debug('No <sorttitle> tag in {nfo}.'.format(
-                        nfo=nfo_file))
-                    pass
-                # Year
-                try:
-                    media.year = int(nfo_xml.xpath('year')[0].text.strip())
-                    log.debug('Reading year tag: {year}'.format(
-                        year=media.year))
-                except:
-                    pass
-                # ID
-                try:
-                    id = nfo_xml.xpath('id')[0].text.strip()
-                except:
-                    id = ''
-                    pass
-                if len(id) > 2:
-                        media.id = id
-                        log.debug('ID from nfo: {id}'.format(id=media.id))
-                else:
-                    # if movie id doesn't exist, create
-                    # one based on hash of title and year
-                    def ord3(x):
-                        return '%.3d' % ord(x)
-                    id = int(''.join(map(ord3, media.name+str(media.year))))
-                    id = str(abs(hash(int(id))))
-                    media.id = id
-                    log.debug('ID generated: {id}'.format(id=media.id))
-
-                results.Append(Metadata(id=media.id, name=media.name, year=media.year, lang=lang, score=100))
-                try:
-                    log.info('Found movie information in NFO file:'
-                             ' title = {nfo.name},'
-                             ' year = {nfo.year},'
-                             ' id = {nfo.id}'.format(nfo=media))
-                except:
-                    pass
+            if len(nfopath) > 0:
+                Log('查询模式：local')
+                if not self.searchLocalMediaNFO(results, media, lang, manual, nfopath):
+                    self.searchOnlineMediaInfo(results, media, lang, manual)
             else:
-                log.info('ERROR: No <movie> tag in {nfo}. Aborting!'.format(
-                    nfo=nfo_file))
+                Log('查询模式：Online')
+                self.searchOnlineMediaInfo(results, media, lang, manual)
 
-# ##### update Function #####
+    def assrtDownSubTitle(self, number, path):
+        # 射手
+        assrt_domain = 'https://assrt.net'
+        assrt_search_url = assrt_domain+'/sub/?searchword='+number
+        assrt_down_url = assrt_domain+'/download/****/-/**/*.*'
+        assrt_diteall_paths = ''
+        c = 0
+        try:
+            # 搜索字幕
+            HTTP.ClearCache()
+            HTTP.CacheTime = CACHE_1MONTH
+            assrt_result = HTTP.Request(
+                assrt_search_url, timeout=timeout).content
+            rep_html = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">'
+            assrt_result = assrt_result.replace(rep_html, '')
+            rep_html = '<html xmlns:wb="http://open.weibo.com/wb" lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+            assrt_result = assrt_result.replace(rep_html, '<html>')
+            rep_html = r'<!--<base href="/search2/%E7%94%9F%E6%B4%BB%E5%A4%A7%E7%88%86%E7%82%B8/">-->'
+            assrt_result = assrt_result.replace(rep_html, '')
+            assrt_diteall_paths = etree.HTML(assrt_result).xpath(
+                '//div[@class="sublist_box_title"]//a/@href')
+        except Exception as ex:
+            Log(ex)
+            return c
+
+        if len(assrt_diteall_paths) > 0:
+            Log('在assrt匹配到字幕：%s' % number)
+            try:
+                assrt_id = assrt_diteall_paths[0].split(
+                    '/')[len(assrt_diteall_paths[0].split('/'))-1].split('.')[0]
+                Log('assrt 字幕id：%s' % assrt_id)
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                assrt_result = HTTP.Request(
+                    assrt_domain+assrt_diteall_paths[0], timeout=timeout).content
+                rep_html = '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">'
+                assrt_result = assrt_result.replace(rep_html, '')
+                rep_html = '<html xmlns:wb="http://open.weibo.com/wb" lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
+                assrt_result = assrt_result.replace(rep_html, '<html>')
+                rep_html = r'<!--<base href="/search2/%E7%94%9F%E6%B4%BB%E5%A4%A7%E7%88%86%E7%82%B8/">-->'
+                assrt_result = assrt_result.replace(rep_html, '')
+                assrt_file_paths = etree.HTML(assrt_result).xpath(
+                    '//div[@class="waves-effect"]/@onclick')
+                if len(assrt_file_paths) > 0:
+                    art_download_count = 1
+                    for files in assrt_file_paths:
+                        try:
+                            tmps = files.replace('onthefly(', '').replace(
+                                '"', '').replace(')', '').split(',')
+                            houzhui = tmps[2].split('.')[1]
+                            if houzhui == 'ass' or houzhui == 'ssa' or houzhui == 'srt' or houzhui == 'sub' or houzhui == 'smi' or houzhui == 'idx' or houzhui == 'smi' or houzhui == 'psg':
+                                assrt_down_url = assrt_down_url.replace(
+                                    '****', tmps[0]).replace('**', tmps[1]).replace('*.*', tmps[2])
+                                HTTP.ClearCache()
+                                HTTP.CacheTime = CACHE_1MONTH
+                                assrt_result = HTTP.Request(
+                                    assrt_down_url, timeout=timeout).content
+
+                                subtitle_path = os.path.join(
+                                    path+'/'+number+'.'+tmps[2].split('.')[1])
+                                if os.path.exists(subtitle_path):
+                                    tmps = number+'.'+datetime.now().strftime('%Y-%m-%d %H:%M:%S').replace(
+                                        '-', '').replace(':', '').replace(' ', '')+'.'+tmps[2].split('.')[1]
+                                    subtitle_path = os.path.join(path+'/'+tmps)
+                                fo = io.open(subtitle_path, "w",
+                                             encoding='utf-8')
+                                fo.write(u''+assrt_result)
+                                fo.close()
+                                if os.path.getsize(subtitle_path) > 1:
+                                    Log('字幕 %s 下载完成' % tmps[2].split('.')[0])
+                                    c = c+1
+                                    break
+                                elif art_download_count == int(Prefs['Cycles']):
+                                    Log('字幕 %s 下载失败' % tmps[2].split('.')[0])
+                                    break
+                                else:
+                                    art_download_count = int(
+                                        art_download_count+1)
+                            else:
+                                break
+                        except Exception as ex:
+                            Log(ex)
+                            return c
+            except Exception as ex:
+                Log(ex)
+                return c
+            return c
+        return c
+
+    def searchLocalMediaNFO(self, results, media, lang, manual, nfopath):
+        data = {
+            "m_studio": "",
+            "m_id": "",
+            "m_actor": {},
+            "m_directors": "",
+            "m_summary": "",
+            "m_collections": "",
+            "m_number": "",
+            "m_title": "",
+            "m_category": "",
+            "m_art_url": "",
+            "m_originallyAvailableAt": "",
+            "m_year": "",
+            "m_poster": ""
+        }
+        nfo_file = nfopath[0]
+        NFO_TEXT_REGEX_1 = re.compile(
+            r'&(?![A-Za-z]+[0-9]*;|#[0-9]+;|#x[0-9a-fA-F]+;)'
+        )
+        NFO_TEXT_REGEX_2 = re.compile(r'^\s*<.*/>[\r\n]+', flags=re.MULTILINE)
+        RATING_REGEX_1 = re.compile(
+            r'(?:Rated\s)?(?P<mpaa>[A-z0-9-+/.]+(?:\s[0-9]+[A-z]?)?)?'
+        )
+        RATING_REGEX_2 = re.compile(r'\s*\(.*?\)')
+
+        nfo_text = load_file(nfo_file)
+
+        nfo_text = NFO_TEXT_REGEX_1.sub('&amp;', nfo_text)
+
+        nfo_text = NFO_TEXT_REGEX_2.sub('', nfo_text)
+
+        nfo_text_lower = nfo_text.lower()
+        if nfo_text_lower.count('<movie') > 0 and nfo_text_lower.count('</movie>') > 0:
+
+            nfo_text = '{content}</movie>'.format(
+                content=nfo_text.rsplit('</movie>', 1)[0]
+            )
+
+            # likely an xbmc nfo file
+            try:
+                nfo_xml = element_from_string(nfo_text).xpath('//movie')[0]
+            except Exception as ex:
+                Log(ex)
+                return False
+
+            # number
+            try:
+                data.update({'m_number': nfo_xml.xpath('number')[0].text})
+            except Exception as ex:
+                Log('NFO number : %s' % ex)
+                return False
+
+            # Title
+            try:
+                data.update({'m_title': nfo_xml.xpath('title')[0].text})
+            except Exception as ex:
+                Log('NFO Title : %s' % ex)
+                return False
+
+            # original_title
+            try:
+                data.update(
+                    {'original_title': nfo_xml.xpath('originaltitle')[0].text})
+            except Exception as ex:
+                Log('NFO original_title : %s' % ex)
+                return False
+
+            # summary
+            try:
+                data.update({'m_summary': nfo_xml.xpath('outline')[0].text})
+            except Exception as ex:
+                Log('NFO summary : %s' % ex)
+                return False
+
+            # year
+            try:
+                data.update({'m_year': nfo_xml.xpath('year')[0].text})
+            except Exception as ex:
+                Log('NFO year : %s' % ex)
+                return False
+
+            # originallyAvailableAt
+            try:
+                data.update(
+                    {'m_originallyAvailableAt': nfo_xml.xpath('premiered')[0].text})
+            except Exception as ex:
+                Log('NFO originallyAvailableAt : %s' % ex)
+                return False
+
+            # category
+            try:
+                categorys = []
+                for citem in nfo_xml.xpath('genre'):
+                    categorys.append(citem.text)
+                if categorys[0] == None:
+                    categorys = ''
+                data.update({'m_category': ','.join(categorys)})
+            except Exception as ex:
+                Log('NFO category : %s' % ex)
+                return False
+
+            # director
+            try:
+                data.update({'m_directors': nfo_xml.xpath('director')[0].text})
+            except Exception as ex:
+                Log('director : %s' % ex)
+                return False
+
+            # collections
+            try:
+                collections = []
+                for colitem in nfo_xml.xpath('collections'):
+                    if isinstance(colitem, list):
+                        collections.append(colitem[0].text)
+                    else:
+                        coltmp = colitem.text
+                        collections.append(coltmp)
+                if len(collections) < 1:
+                    collections = ''
+                data.update({'m_collections': collections})
+            except Exception as ex:
+                Log('NFO collections : %s' % ex)
+                return False
+
+            # poster
+            try:
+                data.update({'m_poster': nfo_xml.xpath('thumb')[0].text})
+            except Exception as ex:
+                Log('poster : %s' % ex)
+                return False
+
+            # actor
+            actors = nfo_xml.xpath('actor')
+            items = {}
+            try:
+                for actor in actors:
+                    if len(actor.xpath('thumb')) > 0:
+                        items.update(
+                            {actor.xpath('name')[0].text: actor.xpath('thumb')[0].text})
+                    else:
+                        items.update(
+                            {actor.xpath('name')[0].text: ''})
+                data.update({'m_actor': items})
+            except Exception as ex:
+                Log('NFO actor : %s' % ex)
+                return False
+
+            # dirTagLine
+            try:
+                data.update(
+                    {'dirtagline': nfo_xml.xpath('dirtagline')[0].text})
+            except Exception as ex:
+                Log('NFO dirTagLine : %s' % ex)
+                return False
+
+            jsondata = json.dumps(data)
+
+            Log('查询结果数据：%s' % jsondata)
+
+            id = data['m_number']
+            wk = 'NFO'
+            name = '%s : %s' % (wk, data['m_title'])
+            media_d = jsondata
+            dirTagLine = data['dirtagline']
+
+            id = base64.b64encode('%s|A|%s|%s|%s' % (
+                id, wk, media_d, dirTagLine))
+            score = 100
+            new_result = dict(id=id, name=name,
+                              year='', score=score, lang=lang)
+            results.Append(MetadataSearchResult(**new_result))
+
+            Log('匹配数据结果：%s 【success】' % data['m_number'])
+            return True
+        else:
+            return False
+
+    def searchOnlineMediaInfo(self, results, media, lang, manual):
+        Log('======开始查询======')
+        # 获取path
+        dirTagLine = None
+        filePath = media.items[0].parts[0].file
+        mediaPath = String.Unquote(filePath, usePlus=False)
+        Log('本地文件路径：%s' % filePath)
+        mediaPathSplitItems = mediaPath.split('/')
+        for item in mediaPathSplitItems:
+            # 正则判断是否匹配 有结果就给出
+            tmp = re.findall(Prefs['Dir_M'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'censored'
+                break
+            tmp = re.findall(Prefs['Dir_NM'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'uncensored'
+                break
+            tmp = re.findall(Prefs['Dir_A'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'animation'
+                break
+            tmp = re.findall(Prefs['Dir_E'], item)
+            if len(tmp) == 1:
+                dirTagLine = 'europe'
+                break
+        Log("本地文件判别类型标记：%s" % dirTagLine)
+
+        if dirTagLine != None:
+
+            if manual:
+
+                LocalFileName = media.name
+                queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
+                Log('手动匹配Plex输出文件名：%s' % media.name)
+                Log('格式化后文件名：%s' % LocalFileName)
+                Log('base64后的关键字：%s' % queryname)
+
+                Log('执行模式：手动')
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                jsondata = HTTP.Request('%s:%s/manual/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                         queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+
+                dict_data_list = json.loads(jsondata)
+                if dict_data_list['issuccess'] == 'true':
+                    json_data_list = dict_data_list['json_data']
+                    if Prefs['Orderby'] == '反序':
+                        Log('结果输出排序方式：反序')
+                    elif Prefs['Orderby'] == '默认':
+                        Log('结果输出排序方式：默认')
+                        json_data_list.reverse()
+
+                    for json_data in json_data_list:
+                        for data_list_key in json_data:
+                            id = ''
+                            name = ''
+                            media_d = ''
+                            wk = data_list_key
+                            data = json_data.get(data_list_key)
+                            data.update(original_title='')
+                            for item_key in data:
+                                if item_key == 'm_number':
+                                    id = data.get(item_key)
+                                if item_key == 'm_title':
+                                    data['original_title'] = data['m_title']
+                                    poster_url = data['m_poster']
+                                    poster_data = {
+                                        'mode': 'poster',
+                                        'url': poster_url,
+                                        'webkey': wk.lower()
+                                    }
+                                    poster_data_json = json.dumps(poster_data)
+                                    url = '%s:%s/img/%s' % (
+                                        Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json))
+
+                                    thumb = url
+                                    name = '%s: %s %s' % (
+                                        wk, data['m_number'], data.get(item_key))
+                            data_d = json.dumps(data)
+                            id = base64.b64encode(
+                                '%s|M|%s|%s|%s' % (id, wk, data_d, dirTagLine))
+                            score = 100
+                            new_result = dict(
+                                id=id, name=name, year='', score=score, lang=lang, thumb=thumb)
+                            results.Append(
+                                MetadataSearchResult(**new_result))
+                    Log('匹配数据结果：%s 【success】' % LocalFileName)
+                else:
+                    Log('匹配数据结果：%s 【无】' % LocalFileName)
+            else:
+                LocalFileName = self.getMediaLocalFileName(media)
+                queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
+                Log('本地文件名：%s' % LocalFileName)
+                Log('base64后的关键字：%s' % queryname)
+                Log('模式：自动')
+                HTTP.ClearCache()
+                HTTP.CacheTime = CACHE_1MONTH
+                jsondata = HTTP.Request('%s:%s/auto/%s/%s/%s/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine,
+                                                                       queryname, Prefs['Service_Token'], Prefs['User_DDNS'], Prefs['Plex_Port']), timeout=timeout).content
+                dict_data = json.loads(jsondata)
+
+                Log('查询结果数据：%s' % jsondata)
+                if dict_data['issuccess'] == 'true':
+                    data_list = dict_data['json_data']
+                    data_list.reverse()
+                    for data in data_list:
+                        id = ''
+                        name = ''
+                        media_d = ''
+                        wk = data
+                        for webkey in data:
+                            media_dict = data.get(webkey)
+                            wk = webkey
+                            media_dict.update(original_title='')
+                            for item_key in media_dict:
+                                if item_key == 'm_number':
+                                    id = media_dict.get(item_key)
+                                if item_key == 'm_title':
+                                    media_dict['original_title'] = media_dict.get(
+                                        item_key)
+                                    name = media_dict.get(item_key)
+
+                            media_d = json.dumps(media_dict)
+                        id = base64.b64encode('%s|A|%s|%s|%s' % (
+                            id, wk, media_d, dirTagLine))
+                        score = 100
+                        new_result = dict(id=id, name=name,
+                                          year='', score=score, lang=lang)
+                        results.Append(MetadataSearchResult(**new_result))
+
+                    Log('匹配数据结果：%s 【success】' % LocalFileName)
+                else:
+                    Log('匹配数据结果：%s 【无】' % LocalFileName)
+        Log('======结束查询======')
 
     def update(self, metadata, media, lang):
-        log.debug('++++++++++++++++++++++++')
-        log.debug('Entering update function')
-        log.debug('++++++++++++++++++++++++')
+        # sections = XML.ElementFromURL(PMS_URL).xpath('//Directory')
+        # for section in sections:
+        #     key = section.get('key')
+        #     Log(key)
+        #     title = section.get('title')
+        #     Log(title)
 
-        log.info('{plugin} Version: {number}'.format(
-            plugin=self.name, number=self.ver))
-        log.debug('Plex Server Version: {number}'.format(
-            number=Platform.ServerVersion))
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
+        Log('======开始执行更新媒体信息======')
+        metadata_list = base64.b64decode(metadata.id).split('|')
+        m_id = metadata_list[0]
+        Log('解析base64传递数据-番号：%s' % m_id)
+        manual = metadata_list[1]
+        Log('解析base64传递数据-执行模式：%s' % manual)
+        webkey = metadata_list[2]
+        Log('解析base64传递数据-元数据站点：%s' % webkey)
+        data = metadata_list[3]
+        Log('解析base64传递数据-更新数据：%s' % data)
+        data = json.loads(data)
+        dirTagLine = metadata_list[4]
+        Log('解析base64传递数据-文件类型判别标记：%s' % dirTagLine)
 
-        if preferences['debug']:
-            log.info ('Agents debug logging is enabled!')
-        else:
-            log.info ('Agents debug logging is disabled!')
-
-        poster_data = None
-        poster_filename = None
-        fanart_data = None
-        fanart_filename = None
-
-        path1 = media.items[0].parts[0].file
-        log.debug('media file: {name}'.format(name=path1))
-
-        folder_path = os.path.dirname(path1)
-        log.debug('folder path: {name}'.format(name=folder_path))
-
-        is_dvd = os.path.basename(folder_path).upper() == 'VIDEO_TS'
-        folder_path_dvd = os.path.dirname(folder_path) if is_dvd else None
-
-        # Movie name with year from folder
-        movie_name_with_year = get_movie_name_from_folder(folder_path, True)
-
-        # Movie name from folder
-        movie_name = get_movie_name_from_folder(folder_path, False)
-
-        if not preferences['localmediaagent']:
-            poster_names = get_related_files(path1, '-poster.jpg')
-            poster_names.extend([
-                # Frodo
-                '{movie}-poster.jpg'.format(movie=movie_name_with_year),
-                '{movie}-poster.jpg'.format(movie=movie_name),
-                os.path.join(folder_path, 'poster.jpg'),
-            ])
-            if is_dvd:
-                poster_names.append(os.path.join(folder_path_dvd, 'poster.jpg'))
-            # Eden
-            poster_names.extend(get_related_files(path1, '.tbn'))
-            poster_names.append('{path}/folder.jpg'.format(path=folder_path))
-            if is_dvd:
-                poster_names.append(os.path.join(folder_path_dvd, 'folder.jpg'))
-            # DLNA
-            poster_names.extend(get_related_files(path1, '.jpg'))
-            # Others
-            poster_names.append('{path}/cover.jpg'.format(path=folder_path))
-            if is_dvd:
-                poster_names.append(os.path.join(folder_path_dvd, 'cover.jpg'))
-            poster_names.append('{path}/default.jpg'.format(path=folder_path))
-            if is_dvd:
-                poster_names.append(os.path.join(folder_path_dvd, 'default.jpg'))
-            poster_names.append('{path}/movie.jpg'.format(path=folder_path))
-            if is_dvd:
-                poster_names.append(os.path.join(folder_path_dvd, 'movie.jpg'))
-
-            # check possible poster file locations
-            poster_filename = check_file_paths(poster_names, 'poster')
-
-            if poster_filename:
-                poster_data = load_file(poster_filename)
-                for key in metadata.posters.keys():
-                    del metadata.posters[key]
-                metadata.posters[poster_filename] = MediaProxy(poster_data)
-
-            fanart_names = get_related_files(path1, '-fanart.jpg')
-            fanart_names.extend([
-                # Eden / Frodo
-                '{movie}-fanart.jpg'.format(movie=movie_name_with_year),
-                '{movie}-fanart.jpg'.format(movie=movie_name),
-                os.path.join(folder_path, 'fanart.jpg'),
-            ])
-            if is_dvd:
-                fanart_names.append(os.path.join(folder_path_dvd, 'fanart.jpg'))
-            # Others
-            fanart_names.append(os.path.join(folder_path, 'art.jpg'))
-            if is_dvd:
-                fanart_names.append(os.path.join(folder_path_dvd, 'art.jpg'))
-            fanart_names.append(os.path.join(folder_path, 'backdrop.jpg'))
-            if is_dvd:
-                fanart_names.append(os.path.join(folder_path_dvd, 'backdrop.jpg'))
-            fanart_names.append(os.path.join(folder_path, 'background.jpg'))
-            if is_dvd:
-                fanart_names.append(os.path.join(folder_path_dvd, 'background.jpg'))
-
-            # check possible fanart file locations
-            fanart_filename = check_file_paths(fanart_names, 'fanart')
-
-            if fanart_filename:
-                fanart_data = load_file(fanart_filename)
-                for key in metadata.art.keys():
-                    del metadata.art[key]
-                metadata.art[fanart_filename] = MediaProxy(fanart_data)
-
-        nfo_names = get_related_files(path1, '.nfo')
-        nfo_names.extend([
-            # Eden / Frodo
-            '{movie}.nfo'.format(movie=movie_name_with_year),
-            '{movie}.nfo'.format(movie=movie_name),
-            # VIDEO_TS
-            os.path.join(folder_path, 'video_ts.nfo'),
-            # movie.nfo (e.g. FilmInfo!Organizer users)
-            os.path.join(folder_path, 'movie.nfo'),
-        ])
-
-        # last resort - use first found .nfo
-        nfo_files = (f for f in os.listdir(folder_path) if f.endswith('.nfo'))
-
-        try:
-            first_nfo = nfo_files.next()
-        except StopIteration:
-            log.debug('No NFO file found in {path!r}'.format(path=folder_path))
-        else:
-            nfo_names.append(os.path.join(folder_path, first_nfo))
-
-        # check possible .nfo file locations
-        nfo_file = check_file_paths(nfo_names, '.nfo')
-
-        if nfo_file:
-            nfo_text = load_file(nfo_file)
-
-            # work around failing XML parses for things with &'s in
-            # them. This may need to go farther than just &'s....
-            nfo_text = NFO_TEXT_REGEX_1.sub(r'&amp;', nfo_text)
-
-            # remove empty xml tags from nfo
-            log.debug('Removing empty XML tags from movies nfo...')
-            nfo_text = NFO_TEXT_REGEX_2.sub('', nfo_text)
-
-            nfo_text_lower = nfo_text.lower()
-
-            if nfo_text_lower.count('<movie') > 0 and nfo_text_lower.count('</movie>') > 0:
-                # Remove URLs (or other stuff) at the end of the XML file
-                nfo_text = '{content}</movie>'.format(
-                    content=nfo_text.rsplit('</movie>', 1)[0]
-                )
-
-                # likely an xbmc nfo file
-                try:
-                    nfo_xml = element_from_string(nfo_text).xpath('//movie')[0]
-                except:
-                    log.debug('ERROR: Cant parse XML in {nfo}.'
-                              ' Aborting!'.format(nfo=nfo_file))
-                    return
-
-                # remove empty xml tags
-                log.debug('Removing empty XML tags from movies nfo...')
-                nfo_xml = remove_empty_tags(nfo_xml)
-
-                # Title
-                try:
-                    metadata.title = nfo_xml.xpath('title')[0].text.strip()
-                except:
-                    log.debug('ERROR: No <title> tag in {nfo}.'
-                              ' Aborting!'.format(nfo=nfo_file))
-                    return
-                # Sort Title
-                try:
-                    metadata.title_sort = nfo_xml.xpath('sorttitle')[0].text.strip()
-                except:
-                    log.debug('No <sorttitle> tag in {nfo}.'.format(
-                        nfo=nfo_file))
-                    pass
-                # Year
-                try:
-                    metadata.year = int(nfo_xml.xpath('year')[0].text.strip())
-                    log.debug('Set year tag: {year}'.format(
-                        year=metadata.year))
-                except:
-                    pass
-                # Original Title
-                try:
-                    metadata.original_title = nfo_xml.xpath('originaltitle')[0].text.strip()
-                except:
-                    pass
-                # Content Rating
-                metadata.content_rating = ''
-                content_rating = {}
-                mpaa_rating = ''
-                try:
-                    mpaa_text = nfo_xml.xpath('./mpaa')[0].text.strip()
-                    match = RATING_REGEX_1.match(mpaa_text)
-                    if match.group('mpaa'):
-                        mpaa_rating = match.group('mpaa')
-                        log.debug('MPAA Rating: ' + mpaa_rating)
-                except:
-                    pass
-                try:
-                    for cert in nfo_xml.xpath('certification')[0].text.split(' / '):
-                        country = cert.strip()
-                        country = country.split(':')
-                        if not country[0] in content_rating:
-                            if country[0] == 'Australia':
-                                if country[1] == 'MA':
-                                    country[1] = 'MA15'
-                                if country[1] == 'R':
-                                    country[1] = 'R18'
-                                if country[1] == 'X':
-                                    country[1] = 'X18'
-                            if country[0] == 'DE':
-                                country[0] = 'Germany'
-                            content_rating[country[0]] = country[1].strip('+').replace('FSK', '').replace('ab ', '').strip()
-                    log.debug('Content Rating(s): ' + str(content_rating))
-                except:
-                    pass
-                if preferences['country'] != '':
-                    cc = COUNTRY_CODES[preferences['country']].split(',')
-                    log.debug(
-                        'Country code from settings: {name}:{code}'.format(
-                            name=preferences['country'], code=cc))
-                    if cc[0] in content_rating:
-                        if cc[1] == '':
-                            metadata.content_rating = content_rating.get(cc[0])
-                        else:
-                            metadata.content_rating = '{country}/{rating}'.format(
-                                country=cc[1].lower(),
-                                rating=content_rating.get(cc[0]))
-                if metadata.content_rating == '' and mpaa_rating != '':
-                    metadata.content_rating = mpaa_rating
-                if metadata.content_rating == '' and 'USA' in content_rating:
-                    metadata.content_rating = content_rating.get('USA')
-                if metadata.content_rating == '' or metadata.content_rating == 'Not Rated':
-                    metadata.content_rating = 'NR'
-                if '(' in metadata.content_rating:
-                    metadata.content_rating = RATING_REGEX_2.sub(
-                        '', metadata.content_rating
-                    )
-
-                # Studio
-                try:
-                    metadata.studio = nfo_xml.xpath('studio')[0].text.strip()
-                except:
-                    pass
-                # Premiere
-                release_string = None
-                release_date = None
-                try:
-                    try:
-                        log.debug('Reading releasedate tag...')
-                        release_string = nfo_xml.xpath('releasedate')[0].text.strip()
-                        log.debug('Releasedate tag is: {value}'.format(value=release_string))
-                    except:
-                        log.debug('No releasedate tag found...')
-                        pass
-                    if not release_string:
-                        try:
-                            log.debug('Reading premiered tag...')
-                            release_string = nfo_xml.xpath('premiered')[0].text.strip()
-                            log.debug('Premiered tag is: {value}'.format(value=release_string))
-                        except:
-                            log.debug('No premiered tag found...')
-                            pass
-                    if not release_string:
-                        try:
-                            log.debug('Reading date added tag...')
-                            release_string = nfo_xml.xpath('dateadded')[0].text.strip()
-                            log.debug('Dateadded tag is: {value}'.format(value=release_string))
-                        except:
-                            log.debug('No dateadded tag found...')
-                            pass
-                    if release_string:
-                        try:
-                            if preferences['dayfirst']:
-                                dt = parse(release_string, dayfirst=True)
-                            else:
-                                dt = parse(release_string)
-                            release_date = dt
-                            log.debug('Set premiere to: {date}'.format(
-                                date=dt.strftime('%Y-%m-%d')))
-                            if not metadata.year:
-                                metadata.year = int(dt.strftime('%Y'))
-                                log.debug('Set year tag from premiere: {year}'.format(year=metadata.year))
-                        except:
-                            log.debug('Couldn\'t parse premiere: {release}'.format(release=release_string))
-                            pass
-                except:
-                    log.exception('Exception parsing release date')
-                try:
-                    if not release_date:
-                        log.debug('Fallback to year tag instead...')
-                        release_date = datetime(int(metadata.year), 1, 1).date()
-                        metadata.originally_available_at = release_date
-                    else:
-                        log.debug('Setting release date...')
-                        metadata.originally_available_at = release_date
-                except:
-                    pass
-
-                metadata.summary = ''
-                # Tagline
-                try:
-                    tagline = nfo_xml.xpath('tagline')[0].text.strip()
-                    metadata.tagline = tagline
-                    if preferences['tlinsummary']:
-                        log.debug('User setting shows tagline in summary...')
-                        metadata.summary = "Tagline: " + tagline + ' | '
-                except:
-                    pass
-                # Summary (Outline/Plot)
-                try:
-                    if preferences['plot']:
-                        log.debug('User setting forces plot before outline...')
-                        s_type_1 = 'plot'
-                        s_type_2 = 'outline'
-                    else:
-                        log.debug('Default setting forces outline before plot...')
-                        s_type_1 = 'outline'
-                        s_type_2 = 'plot'
-                    try:
-                        summary = nfo_xml.xpath(s_type_1)[0].text.strip('| \t\r\n')
-                        if not summary:
-                            log.debug('No or empty {primary} tag. Fallback to {secondary}...'.format(
-                                primary=s_type_1, secondary=s_type_2
-                            ))
-                            raise
-                    except:
-                        summary = nfo_xml.xpath(s_type_2)[0].text.strip('| \t\r\n')
-                    metadata.summary = metadata.summary + summary
-                except:
-                    log.debug('Exception on reading summary!')
-                    pass
-                # Ratings
-                nfo_rating = None
-                try:
-                    nfo_rating = round(float(nfo_xml.xpath('rating')[0].text.replace(',', '.')), 1)
-                    log.debug('Movie Rating found: ' + str(nfo_rating))
-                except:
-                    pass
-                if not nfo_rating:
-                    log.debug('Reading old rating style failed.'
-                              ' Trying new Krypton style.')
-                    for ratings in nfo_xml.xpath('ratings'):
-                        try:
-                            rating = ratings.xpath('rating')[0]
-                            nfo_rating = round(float(rating.xpath('value')[0].text.replace(',', '.')), 1)
-                            log.debug('Krypton style movie rating found:'
-                                      ' {rating}'.format(rating=nfo_rating))
-                        except:
-                            log.debug('Can\'t read rating from .nfo.')
-                            nfo_rating = 0.0
-                            pass
-                if preferences['altratings']:
-                    log.debug('Searching for additional Ratings...')
-                    allowed_ratings = preferences['ratings']
-                    if not allowed_ratings:
-                        allowed_ratings = ''
-                    add_ratings_string = ''
-                    add_ratings = None
-                    try:
-                        add_ratings = nfo_xml.xpath('ratings')
-                        log.debug('Trying to read additional ratings from .nfo.')
-                    except:
-                        log.debug('Can\'t read additional ratings from .nfo.')
-                        pass
-                    if add_ratings:
-                        for add_rating_xml in add_ratings:
-                            for add_rating in add_rating_xml:
-                                try:
-                                    rating_provider = str(add_rating.attrib['moviedb'])
-                                except:
-                                    pass
-                                    log.debug('Skipping additional rating without moviedb attribute!')
-                                    continue
-                                rating_value = str(add_rating.text.replace(',', '.'))
-                                if rating_provider.lower() in PERCENT_RATINGS:
-                                    rating_value += '%'
-                                if rating_provider in allowed_ratings or allowed_ratings == '':
-                                    log.debug('adding rating: ' + rating_provider + ': ' + rating_value)
-                                    add_ratings_string = add_ratings_string + ' | ' + rating_provider + ': ' + rating_value
-                            if add_ratings_string != '':
-                                log.debug(
-                                    'Putting additional ratings at the'
-                                    ' {position} of the summary!'.format(
-                                        position=preferences['ratingspos'])
-                                )
-                                if preferences['ratingspos'] == 'front':
-                                    if preferences['preserverating']:
-                                        metadata.summary = add_ratings_string[3:] + unescape(' &#9733;\n\n') + metadata.summary
-                                    else:
-                                        metadata.summary = unescape('&#9733; ') + add_ratings_string[3:] + unescape(' &#9733;\n\n') + metadata.summary
-                                else:
-                                    metadata.summary = metadata.summary + unescape('\n\n&#9733; ') + add_ratings_string[3:] + unescape(' &#9733;')
-                            else:
-                                log.debug('Additional ratings empty or malformed!')
-                if preferences['preserverating']:
-                    log.debug('Putting .nfo rating in front of summary!')
-                    if not nfo_rating:
-                        nfo_rating = 0.0
-                    metadata.summary = unescape(str(preferences['beforerating'])) + '{:.1f}'.format(nfo_rating) + unescape(str(preferences['afterrating'])) + metadata.summary
-                    metadata.rating = nfo_rating
+        '在标语处显示来源元数据站点'
+        metadata.tagline = webkey
+        number = ''
+        poster = None
+        art = None
+        for i, media_item in enumerate(data):
+            if media_item == 'm_number':
+                number = data.get(media_item)
+                if dirTagLine == 'europe':
+                    Log('标题模式：欧美')
+                    metadata.title = data['m_title']
                 else:
-                    metadata.rating = nfo_rating
-                # Writers (Credits)
-                try:
-                    credits = nfo_xml.xpath('credits')
-                    metadata.writers.clear()
-                    for creditXML in credits:
-                        for c in creditXML.text.split('/'):
-                            metadata.writers.new().name = c.strip()
-                except:
-                    pass
-                # Directors
-                try:
-                    directors = nfo_xml.xpath('director')
-                    metadata.directors.clear()
-                    for directorXML in directors:
-                        for d in directorXML.text.split('/'):
-                            metadata.directors.new().name = d.strip()
-                except:
-                    pass
-                # Genres
-                try:
-                    genres = nfo_xml.xpath('genre')
-                    metadata.genres.clear()
-                    [metadata.genres.add(g.strip()) for genreXML in genres for g in genreXML.text.split('/')]
-                    metadata.genres.discard('')
-                except:
-                    pass
-                # Countries
-                try:
-                    countries = nfo_xml.xpath('country')
-                    metadata.countries.clear()
-                    [metadata.countries.add(c.strip()) for countryXML in countries for c in countryXML.text.split('/')]
-                    metadata.countries.discard('')
-                except:
-                    pass
-                # Collections (Set)
-                setname = None
-                # Create a pattern to remove 'Series' and 'Collection' from the end of the
-                # setname since Plex adds 'Collection' in the GUI already
-                setname_pat = re.compile(r'[\s]?(series|collection)$', re.IGNORECASE)
-                try:
-                    metadata.collections.clear()
-                    # trying enhanced set tag name first
-                    setname = nfo_xml.xpath('set')[0].xpath('name')[0].text
-                    setname = setname_pat.sub('', setname.strip())
-                    log.debug('Enhanced set tag found: ' + setname)
-                except:
-                    log.debug('No enhanced set tag found...')
-                    pass
-                try:
-                    # fallback to flat style set tag
-                    if not setname:
-                        setname = nfo_xml.xpath('set')[0].text
-                        setname = setname_pat.sub('', setname.strip())
-                        log.debug('Set tag found: ' + setname)
-                except:
-                    log.debug('No set tag found...')
-                    pass
-                if setname:
-                    metadata.collections.add(setname)
-                    log.debug('Added Collection from Set tag.')
-                # Collections (Tags)
-                if preferences['collectionsfromtags']:
-                    log.debug('Creating Collections from tags...')
-                    try:
-                        tags = nfo_xml.xpath('tag')
-                        [metadata.collections.add(setname_pat.sub('', t.strip())) for tag_xml in tags for t in tag_xml.text.split('/')]
-                        log.debug('Added Collection(s) from tags.')
-                    except:
-                        log.debug('Error adding Collection(s) from tags.')
-                        pass
-                # Duration
-                try:
-                    log.debug('Trying to read <durationinseconds> tag from .nfo file...')
-                    file_info_xml = element_from_string(nfo_text).xpath('fileinfo')[0]
-                    stream_details_xml = file_info_xml.xpath('streamdetails')[0]
-                    video_xml = stream_details_xml.xpath('video')[0]
-                    runtime = video_xml.xpath('durationinseconds')[0].text.strip()
-                    metadata.duration = int(re.compile('^([0-9]+)').findall(runtime)[0]) * 1000  # s
-                except:
-                    try:
-                        log.debug('Fallback to <runtime> tag from .nfo file...')
-                        runtime = nfo_xml.xpath('runtime')[0].text.strip()
-                        metadata.duration = int(re.compile('^([0-9]+)').findall(runtime)[0]) * 60 * 1000  # ms
-                    except:
-                        log.debug('No Duration in .nfo file.')
-                        pass
-                # Actors
-                rroles = []
-                metadata.roles.clear()
-                for n, actor in enumerate(nfo_xml.xpath('actor')):
-                    newrole = metadata.roles.new()
-                    try:
-                        newrole.name = actor.xpath('name')[0].text
-                    except:
-                        newrole.name = 'Unknown Name ' + str(n)
-                        pass
-                    try:
-                        role = actor.xpath('role')[0].text
-                        if role in rroles:
-                            newrole.role = role + ' ' + str(n)
+                    Log('标题模式：日本')
+                    if number == '':
+                        metadata.title = data['m_title']
+                    else:
+                        if webkey == 'ArzonAnime':
+                            if Prefs['Title_jp_anime'] == '番号':
+                                metadata.title = number
+                            elif Prefs['Title_jp_anime'] == '标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = tran_title
+                                    else:
+                                        metadata.title = data['m_title']
+                                else:
+                                    metadata.title = data['m_title']
+
+                            elif Prefs['Title_jp_anime'] == '番号,标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = '%s %s' % (
+                                            number, tran_title)
+                                    else:
+                                        metadata.title = '%s %s' % (
+                                            number, data['m_title'])
+                                else:
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
                         else:
-                            newrole.role = role
-                        rroles.append (newrole.role)
-                    except:
-                        newrole.role = 'Unknown Role ' + str(n)
-                        pass
-                    newrole.photo = ''
-                    athumbloc = preferences['athumblocation']
-                    if athumbloc in ['local','global']:
-                        aname = None
-                        try:
-                            try:
-                                aname = actor.xpath('name')[0].text
-                            except:
-                                pass
-                            if aname:
-                                aimagefilename = aname.replace(' ', '_') + '.jpg'
-                                athumbpath = preferences['athumbpath'].rstrip ('/')
-                                if not athumbpath == '':
-                                    if athumbloc == 'local':
-                                        localpath = os.path.join (folder_path,'.actors',aimagefilename)
-                                        scheme, netloc, path, qs, anchor = urlparse.urlsplit(athumbpath)
-                                        basepath = os.path.basename (path)
-                                        log.debug ('Searching for additional path parts after: ' + basepath)
-                                        searchpos = folder_path.find (basepath)
-                                        addpos = searchpos + len(basepath)
-                                        addpath = os.path.dirname(folder_path)[addpos:]
-                                        if searchpos != -1 and addpath !='':
-                                            log.debug ('Found additional path parts: ' + addpath)
-                                        else:
-                                            addpath = ''
-                                            log.debug ('Found no additional path parts.')
-                                        aimagepath = athumbpath + addpath + '/' + os.path.basename(folder_path) + '/.actors/' + aimagefilename
-                                        if not os.path.isfile(localpath):
-                                            log.debug ('failed setting ' + athumbloc + ' actor photo: ' + aimagepath)
-                                            aimagepath = None
-                                    if athumbloc == 'global':
-                                        aimagepath = athumbpath + '/' + aimagefilename
-                                        scheme, netloc, path, qs, anchor = urlparse.urlsplit(aimagepath)
-                                        path = urllib.quote(path.encode('utf-8'))
-                                        path = urllib.quote(path, '/%')
-                                        qs = urllib.quote_plus(qs, ':&=')
-                                        aimagepathurl = urlparse.urlunsplit((scheme, netloc, path, qs, anchor))
-                                        response = urllib.urlopen(aimagepathurl).code
-                                        if not response == 200:
-                                            log.debug ('failed setting ' + athumbloc + ' actor photo: ' + aimagepath)
-                                            aimagepath = None
-                                    if aimagepath:
-                                        newrole.photo = aimagepath
-                                        log.debug ('success setting ' + athumbloc + ' actor photo: ' + aimagepath)
-                        except:
-                            log.debug ('exception setting local or global actor photo!')
-                            log.debug ("Traceback: " + traceback.format_exc())
-                            pass
-                    if athumbloc == 'link' or not newrole.photo:
-                        try:
-                            newrole.photo = actor.xpath('thumb')[0].text
-                            log.debug ('linked actor photo: ' + newrole.photo)
-                        except:
-                            log.debug ('failed setting linked actor photo!')
-                            pass
+                            if Prefs['Title_jp'] == '番号':
+                                metadata.title = number
+                            elif Prefs['Title_jp'] == '标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = tran_title
+                                    else:
+                                        metadata.title = data['m_title']
+                                else:
+                                    metadata.title = data['m_title']
 
-                if not preferences['localmediaagent']:
-                    # Trailer Support
-                    # Eden / Frodo
-                    if preferences['trailer']:
-                        for f in os.listdir(folder_path):
-                            (fn, ext) = os.path.splitext(f)
-                            try:
-                                title = ''
-                                if fn.endswith('-trailer'):
-                                        title = ' '.join(fn.split('-')[:-1])
-                                if fn == 'trailer' or f.startswith('movie-trailer'):
-                                        title = metadata.title
-                                if title != '':
-                                    metadata.extras.add(Trailer(title=title, file=os.path.join(folder_path, f)))
-                                    log.debug('Found trailer file ' + os.path.join(folder_path, f))
-                                    log.debug('Trailer title:' + title)
-                            except:
-                                log.debug('Exception adding trailer file!')
+                            elif Prefs['Title_jp'] == '番号,标题':
+                                if Prefs['Trantitle'] == '开启':
+                                    Log("标题翻译：开启")
+                                    HTTP.ClearCache()
+                                    HTTP.CacheTime = CACHE_1MONTH
+                                    tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'], dirTagLine, base64.b64encode(
+                                        data['m_title']).replace('/', ';<*'))
+                                    if not data['m_title'] == '':
+                                        Log('翻译连接：%s', tran_url)
+                                        tran_title = HTTP.Request(
+                                            tran_url, timeout=timeout).content
+                                        metadata.title = '%s %s' % (
+                                            number, tran_title)
+                                    else:
+                                        metadata.title = '%s %s' % (
+                                            number, data['m_title'])
+                                else:
+                                    metadata.title = '%s %s' % (
+                                        number, data['m_title'])
 
-                if not preferences['localmediaagent'] and preferences['subtitle']:
-                    # Subtitle Support
-                    # Supports XBMC/Kodi subtitle filenames AND Plex subtitle filenames
-                    subtitle_files = []
-                    # Look for subtitle files and process them
-                    for item in media.items:
-                        for part in item.parts:
-                            subtitle_files.extend(subtitles.process_subtitle_files(part))
+            if media_item == 'original_title':
+                metadata.original_title = data.get(media_item)
 
-                    # If some subtitle files were found, log the details for debugging purposes
-                    if len(subtitle_files) > 0:
-                        log.debug("Listing details for {} subtitle file(s) found:".format(str(len(subtitle_files))))
-                        for subtitle_file in subtitle_files:
-                            log.debug("    {}".format(subtitle_file))
+            if media_item == 'm_summary':
+                if Prefs['Transum'] == '开启':
+                    if data.get(media_item) == '' or data.get(media_item) == None:
+                        metadata.summary = data.get(media_item)
+                    else:
+                        Log("简介翻译：开启")
+                        HTTP.ClearCache()
+                        HTTP.CacheTime = CACHE_1MONTH
+                        tran_url = '%s:%s/t/%s/%s' % (Prefs['Service_IP'], Prefs['Service_Port'],
+                                                      dirTagLine, base64.b64encode(data.get(media_item)).replace('/', ';<*'))
+                        Log('翻译连接：%s', tran_url)
+                        tran_summary = HTTP.Request(
+                            tran_url, timeout=timeout).content
+                        metadata.summary = tran_summary
+                else:
+                    metadata.summary = data.get(media_item)
 
-                    # Remove subtitle files that are no longer present by comparing with the newly found files
-                    for item in media.items:
-                        for part in item.parts:
-                            subtitles.cleanup_subtitle_entries(part, subtitle_files)
+            if media_item == 'm_studio':
+                metadata.studio = data.get(media_item)
 
-                log.info('---------------------')
-                log.info('Movie nfo Information')
-                log.info('---------------------')
+            if media_item == 'm_collections':
+                metadata.collections.clear()
+                mediaPathSplitItems = msrcfilepath.split('/')
+                tmp = ''
+                for item in mediaPathSplitItems:
+                    if len(re.findall(Prefs['Dir_C'], item)) > 0:
+                        tmp = item
+                if len(tmp) > 0:
+                    tmp = tmp.replace(Prefs['Dir_C'], '')
+                    Log('检测到合集标志并以 %s 作为合集名' % tmp)
+                    metadata.collections.add(tmp)
+                else:
+                    if not data.get(media_item) == '':
+                        if isinstance(data.get(media_item), list):
+                            metadata.collections.add(data.get(media_item)[0])
+                        else:
+                            metadata.collections.add(
+                                data.get(media_item).encode("UTF-8"))
+                    else:
+                        metadata.collections.add('')
+
+            if media_item == 'm_originallyAvailableAt':
                 try:
-                    log.info('ID: ' + str(metadata.guid))
-                except:
-                    log.info('ID: -')
+                    if not data.get(media_item) == '':
+                        date_object = datetime.strptime(
+                            data.get(media_item).replace('/', '-'), r'%Y-%m-%d')
+                        metadata.originally_available_at = date_object
+                        Log('上映日期：%s' % date_object)
+                    else:
+                        metadata.originally_available_at = datetime.strptime(
+                            '1900-01-01', r'%Y-%m-%d')
+                except Exception as ex:
+                    Log('上映日期：捕获异常：%s', ex)
+
+            if media_item == 'm_year':
                 try:
-                    log.info('Title: ' + str(metadata.title))
-                except:
-                    log.info('Title: -')
-                try:
-                    log.info('Sort Title: ' + str(metadata.title_sort))
-                except:
-                    log.info('Sort Title: -')
-                try:
-                    log.info('Year: ' + str(metadata.year))
-                except:
-                    log.info('Year: -')
-                try:
-                    log.info('Original: ' + str(metadata.original_title))
-                except:
-                    log.info('Original: -')
-                try:
-                    log.info('Rating: ' + str(metadata.rating))
-                except:
-                    log.info('Rating: -')
-                try:
-                    log.info('Content: ' + str(metadata.content_rating))
-                except:
-                    log.info('Content: -')
-                try:
-                    log.info('Studio: ' + str(metadata.studio))
-                except:
-                    log.info('Studio: -')
-                try:
-                    log.info('Premiere: ' + str(metadata.originally_available_at))
-                except:
-                    log.info('Premiere: -')
-                try:
-                    log.info('Tagline: ' + str(metadata.tagline))
-                except:
-                    log.info('Tagline: -')
-                try:
-                    log.info('Summary: ' + str(metadata.summary))
-                except:
-                    log.info('Summary: -')
-                log.info('Writers:')
-                try:
-                    [log.info('\t' + writer.name) for writer in metadata.writers]
-                except:
-                    log.info('\t-')
-                log.info('Directors:')
-                try:
-                    [log.info('\t' + director.name) for director in metadata.directors]
-                except:
-                    log.info('\t-')
-                log.info('Genres:')
-                try:
-                    [log.info('\t' + genre) for genre in metadata.genres]
-                except:
-                    log.info('\t-')
-                log.info('Countries:')
-                try:
-                    [log.info('\t' + country) for country in metadata.countries]
-                except:
-                    log.info('\t-')
-                log.info('Collections:')
-                try:
-                    [log.info('\t' + collection) for collection in metadata.collections]
-                except:
-                    log.info('\t-')
-                try:
-                    log.info('Duration: {time} min'.format(
-                        time=metadata.duration // 60000))
-                except:
-                    log.info('Duration: -')
-                log.info('Actors:')
-                for actor in metadata.roles:
+                    metadata.year = int(
+                        data.get(media_item).replace('/', '-').split('-')[0])
+                    Log('影片年份：%s' % data.get(media_item).replace(
+                        '/', '-').split('-')[0])
+                except Exception as ex:
+                    Log('影片年份：%s 捕获异常：%s' % (data.get(media_item), ex))
+
+            if media_item == 'm_directors':
+                metadata.directors.clear()
+                metadata.directors.new().name = data.get(media_item)
+
+            if media_item == 'm_category':
+                metadata.genres.clear()
+                genres_list = data.get(media_item).split(',')
+                for genres_name in genres_list:
+                    metadata.genres.add(genres_name)
+
+            if media_item == 'm_poster':
+                if webkey == 'NFO':
+                    posterpath = self.searchFilesPath(
+                        msrcfilepath, '-poster.jpg')[0]
                     try:
-                        log.info('\t{actor.name} > {actor.role}'.format(actor=actor))
-                    except:
-                        try:
-                            log.info('\t{actor.name}'.format(actor=actor))
-                        except:
-                            log.info('\t-')
-                    log.info('---------------------')
-            else:
-                log.info('ERROR: No <movie> tag in {nfo}.'
-                         ' Aborting!'.format(nfo=nfo_file))
-            return metadata
+                        metadata.posters[posterpath] = Proxy.Media(
+                            load_file(posterpath))
+                    except Exception as ex:
+                        Log('NFO海报 : 捕获异常：%s:%s' % (ex, posterpath))
+                else:
+                    poster_url = data.get(media_item)
 
-xbmcnfo = XBMCNFO
+                    poster_data = {
+                        'mode': 'poster',
+                        'url': poster_url,
+                        'webkey': webkey.lower()
+                    }
+                    poster_data_json = json.dumps(poster_data)
+                    purl = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                    Log('海报：%s' % purl)
+                    try:
+                        poster = HTTP.Request(purl, timeout=timeout).content
+                    except Exception as ex:
+                        Log('海报捕获异常：%s:%s' % (ex, purl))
+                    if not poster == None:
+                        metadata.posters[purl] = Proxy.Media(poster)
 
-# -- LOG ADAPTER -------------------------------------------------------------
+            if media_item == 'm_art_url':
+                if webkey == 'NFO':
+                    artpath = self.searchFilesPath(
+                        msrcfilepath, '-fanart.jpg')[0]
+                    try:
+                        metadata.art[artpath] = Proxy.Media(
+                            load_file(artpath))
+                    except Exception as ex:
+                        Log('NFO背景 ： 捕获异常：%s:%s' % (ex, artpath))
+                else:
+                    art_url = data.get(media_item)
 
-class PlexLogAdapter(object):
-    """
-    Adapts Plex Log class to standard python logging style.
+                    art_data = {
+                        'mode': 'art',
+                        'url': art_url,
+                        'webkey': webkey.lower()
+                    }
+                    art_data_json = json.dumps(art_data)
+                    aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(art_data_json))
+                    Log('背景：%s' % aurl)
+                    try:
+                        art = HTTP.Request(aurl, timeout=timeout).content
+                    except Exception as ex:
+                        Log('背景捕获异常：%s:%s' % (ex, aurl))
+                    if not art == None:
+                        metadata.art[aurl] = Proxy.Media(art)
 
-    This is a very simple remap of methods and does not provide
-    full python standard logging functionality.
-    """
-    debug = Log.Debug
-    info = Log.Info
-    warn = Log.Warn
-    error = Log.Error
-    critical = Log.Critical
-    exception = Log.Exception
+            if media_item == 'm_actor':
+                metadata.roles.clear()
+                actors_list = data.get(media_item)
+                if actors_list != '':
+                    for key in actors_list:
+                        role = metadata.roles.new()
+                        role.name = key
+                        imgurl = actors_list.get(key)
+                        if imgurl != '':
+                            art_data = {
+                                'mode': 'actor',
+                                'url': imgurl,
+                                'webkey': webkey.lower()
+                            }
+                            art_data_json = json.dumps(art_data)
 
+                            if webkey == 'NFO':
+                                url = imgurl
+                            else:
+                                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
+                                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
+                                Log('演员 %s 头像：%s' % (role.name, url))
 
-class XBMCLogAdapter(PlexLogAdapter):
-    """
-    Plex Log adapter that only emits debug statements based on preferences.
-    """
-    @staticmethod
-    def debug(*args, **kwargs):
-        """
-        Selective logging of debug message based on preference.
-        """
-        if preferences['debug']:
-            Log.Debug(*args, **kwargs)
+                            role.photo = url
+                        else:
+                            role.photo = ''
 
-log = XBMCLogAdapter
+        # 设置影片级别
+        metadata.content_rating = 'R18'
 
+        # 下载字幕
+        if Prefs['SubtitleDown'] == '开启':
+            dcount = self.assrtDownSubTitle(number, msrcfilepath) 
+            if dcount > 0:                
+                Log('匹配到字幕并下载完成 %s 个' % dcount)
+            
 
-# -- HELPER FUNCTIONS --------------------------------------------------------
+        if not webkey == 'NFO':
+            if Prefs['BKNFO'] == '开启':
+                self.createNFO(metadata, media, number, poster,
+                               purl, art, aurl, dirTagLine)
 
-VIDEO_FILE_BASE_REGEX = re.compile(
-    r'(?is)\s*-\s*(cd|dvd|disc|disk|part|pt|d)\s*[0-9]$'
-)
+        Log('更新媒体信息 ：【%s】 结束' % m_id)
+        Log('======结束执行更新媒体信息======')
 
+    def createNFO(self, metadata, media, number, poster, purl, art, aurl, dirtagline):
+        Log('开始生成NFO文件，海报 , 演员图片')
 
-def get_base_file(video_file):
-    """
-    Get a Movie's base filename.
+        xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        xml = xml + '<movie>\n'
 
-    This strips the video file extension and any CD / DVD or Part
-    information from the video's filename.
+        # dirtagline
+        xml = xml + '<dirtagline>%s</dirtagline>\n' % dirtagline
 
-    :param video_file: filename to be processed
-    :return: string containing base file name
-    """
-    # split the filename and extension
-    base, extension = os.path.splitext(video_file)
-    del extension  # video file's extension is not used
-    # Strip CD / DVD / Part information from file name
-    base = VIDEO_FILE_BASE_REGEX.sub('', base)
-    # Repeat a second time
-    base = VIDEO_FILE_BASE_REGEX.sub('', base)
-    return base
+        # number
+        xml = xml + '<number>%s</number>\n' % number
+        # 标题
+        xml = xml + '<title>%s</title>\n' % metadata.title
+        xml = xml + '<originaltitle>%s</originaltitle>\n' % metadata.original_title
+        # 简介
+        xml = xml + '<outline>%s</outline>\n' % metadata.summary
+        # 标语
+        xml = xml+'<tagline>%s</tagline>\n' % metadata.tagline
+        # 影片年份
+        xml = xml + '<year>%s</year>\n' % metadata.year
+        # 上映日期
+        xml = xml+'<premiered>%s</premiered>\n' % metadata.originally_available_at
+        # 级别
+        xml = xml+'<mpaa>R18</mpaa>\n'
 
+        # 类型
+        for genre in metadata.genres:
+            xml = xml + '<genre>%s</genre>\n' % genre
 
-def get_related_file(video_file, file_extension):
-    """
-    Get a file related to the Video with a different extension.
+        # 工作室
+        '<studio>%s</studio>\n' % metadata.studio
+        # 导演
+        for director in metadata.directors:
+            xml = xml + '<director>%s</director>\n' % director.name
 
-    :param video_file: the filename of the associated video
-    :param file_extension: the related files extension
-    :return: a filename for a related file
-    """
-    return get_base_file(video_file) + file_extension
+        # 系列
+        for collections in metadata.collections:
+            if not collections == None or collections == '':
+                xml = xml+'<collections>%s</collections>\n' % collections
 
+        # 同名目录没有则创建
+        # src文件名拆分
+        filepathlist = media.items[0].parts[0].file.split('/')
+        Log('src文件名拆分：%s' % filepathlist)
 
-RELATED_DIRS = {
-    '/',
-    '/NFO/',
-    '/nfo/',
-}
+        # 文件名+后缀
+        filenameall = filepathlist[len(filepathlist)-1]
+        Log('文件名+后缀：%s' % filenameall)
 
+        # 文件名
+        filename = filenameall.split('.')[0]
+        Log('文件名：%s' % filename)
 
-def get_related_files(video_file, file_extension):
-    """
-    Get a file related to the Video with a different extension.
-    Support alternate subdirectories for related files.
+        # 原文件全路径
+        srcfilepath = os.path.join(media.items[0].parts[0].file)
+        Log('原文件全路径： %s' % srcfilepath)
 
-    :param video_file: the filename of the associated video
-    :param file_extension: the related files extension
-    :return: a filename for a related file
-    """
+        # 新文件路径
+        ftmp = srcfilepath.replace('/'+filenameall, '').replace('/'+number, '')
+        newfilepath = ftmp+'/'+number
+        Log('新文件路径：%s' % newfilepath)
 
-    folder_path, file_name = os.path.split(video_file)
-    results = []
-    for i in RELATED_DIRS:
-        results.append(get_base_file(folder_path + i + file_name) + file_extension)
-    return results
-
-
-MOVIE_NAME_REGEX = re.compile(r' \(.*\)')
-
-
-def get_movie_name_from_folder(folder_path, with_year):
-    """
-    Get the name of the movie from the folder.
-
-    :param folder_path:
-    :param with_year:
-    :return:
-    """
-    # Split the folder into a list of paths
-    folder_split = os.path.normpath(folder_path).split(os.sep)
-
-    if folder_split[-1] == 'VIDEO_TS':  # If the folder is from a DVD
-        # Strip the VIDEO_TS folder
-        base = os.path.join(*folder_split[1:len(folder_split) - 1])
-        name = folder_split[-2]
-    else:
-        base = os.path.join(*folder_split)
-        name = folder_split[-1]
-
-    if with_year:  # then apply the MOVIE_NAME_REGEX to strip year information
-        name = MOVIE_NAME_REGEX.sub('', name)
-
-    # Append the Movie name from folder to the end of the path
-    movie_name = os.path.join(base, name)
-    log.debug('Movie name from folder{with_year}: {name}'.format(
-        with_year=' (with year)' if with_year else '',
-        name=movie_name,
-    ))
-    return movie_name
-
-
-def check_file_paths(file_names, file_type=None):
-    """
-    CHeck a list of file names and return the first one found.
-
-    :param file_names: An iterable of file names to check
-    :param file_type: (Optional) Type of file searched for. Used for logging.
-    :return: a valid filename or None
-    """
-    for filename in file_names:
-        log.debug('Trying {name}'.format(name=filename))
-        if os.path.exists(filename):
-            log.info('Found {type} file {name}'.format(
-                type=file_type if file_type else 'a',
-                name=filename,
-            ))
-            return filename
-    else:
-        log.info('No {type} file found! Aborting!'.format(
-            type=file_type if file_type else 'valid'
-        ))
-
-
-def remove_empty_tags(document):
-    """
-    Removes empty XML tags.
-
-    :param document: An HTML element object.
-        see: http://lxml.de/api/lxml.etree._Element-class.html
-    :return:
-    """
-    empty_tags = []
-    for xml_tag in document.iter('*'):
-        if not(len(xml_tag) or (xml_tag.text and xml_tag.text.strip())):
-                empty_tags.append(xml_tag.tag)
-                xml_tag.getparent().remove(xml_tag)
-    log.debug('Empty XMLTags removed: {number} {tags}'.format(
-        number=len(empty_tags) or None,
-        tags=sorted(set(empty_tags)) or ''
-    ))
-    return document
-
-
-UNESCAPE_REGEX = re.compile('&#?\w+;')
-
-
-def unescape(markup):
-    """
-    Removes HTML or XML character references and entities from a text.
-    Copyright:
-        http://effbot.org/zone/re-sub.htm October 28, 2006 | Fredrik Lundh
-    :param markup: The HTML (or XML) source text.
-    :return: The plain text, as a Unicode string, if necessary.
-    """
-
-    def fix_up(match):
-        """
-        Convert a match from a character reference or named entity to unicode.
-
-        :param match:  A regex match to attempt to convert to unicode
-        :return: unescaped character or original text
-        """
-        element = match.group(0)
-        if element.startswith('&#'):  # character reference
-            start, base = (3, 16) if element.startswith('&#x') else (2, 10)
+        if not os.path.exists(newfilepath):
             try:
-                return unichr(int(element[start:-1], base))
-            except ValueError:
-                pass
-        else:  # named entity
+                os.makedirs(newfilepath)
+                Log('创建 %s 目录：%s' % (number, newfilepath))
+            except Exception as ex:
+                Log('创建目录发生异常：%s \r\n %s ' % (newfilepath, ex))
+
+        # 移动所有同名文件
+        msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
+                                    0:len(media.items[0].parts[0].file.split('/'))-1]))
+        Log(msrcfilepath)
+        msrcfilepaths = self.searchFilesPath(msrcfilepath, number)
+        Log(msrcfilepaths)
+        for file_path in msrcfilepaths:
             try:
-                element = unichr(name2codepoint[element[1:-1]])
-            except KeyError:
-                pass
-        return element  # leave as is
+                if not os.path.exists(newfilepath+'/'+file_path.split('/')[len(file_path.split('/'))-1]):
+                    shutil.move(file_path, newfilepath)
+                    Log('文件 %s 移动至：%s' % (file_path, newfilepath+'/' +
+                                          file_path.split('/')[len(file_path.split('/'))-1]))
+                else:
+                    Log('文件  %s  已存在' % (newfilepath+'/' +
+                                         file_path.split('/')[len(file_path.split('/'))-1]))
+            except Exception as ex:
+                Log('移动媒体文件 %s 时发生异常：%s' % (newfilepath+'/' +
+                                            file_path.split('/')[len(file_path.split('/'))-1], ex))
 
-    return UNESCAPE_REGEX.sub(fix_up, markup)
+        # 演员
+        actor_path = newfilepath+'/.actors'
+        for role in metadata.roles:
+            xml = xml + '<actor>\n'
+            xml = xml + '<name>%s</name>\n' % role.name
+            try:
+                if not os.path.exists(actor_path):
+                    os.makedirs(actor_path)
+                    Log('创建 .actors 目录：%s' % actor_path)
+            except Exception as ex:
+                Log('创建目录发生异常：%s \r\n %s ' % (actor_path, ex))
 
+            try:
+                rolepath = os.path.join(
+                    actor_path + '/'+role.name + '-actor.jpg')
+                if not os.path.exists(rolepath):
+                    if not role.photo == '':
+                        actor_download_count = 1
+                        for index in range(int(Prefs['Cycles'])):
+                            Log('尝试头像 %s 第 %s/%s 次下载' %
+                                (role.name, int(index+1), Prefs['Cycles']))
+                            HTTP.ClearCache()
+                            HTTP.CacheTime = CACHE_1MONTH
+                            actor = HTTP.Request(
+                                role.photo, timeout=timeout).content
+                            with io.open(rolepath, 'wb') as f:
+                                f.write(actor)
+                            if os.path.getsize(rolepath) > 1:
+                                Log('头像 %s 下载完成' % role.name)
+                                break
+                            elif actor_download_count == int(Prefs['Cycles']):
+                                Log('头像 %s 下载失败' % role.name)
+                            else:
+                                actor_download_count = int(
+                                    actor_download_count+1)
+                xml = xml + '<thumb>%s</thumb>\n' % role.photo
+            except Exception as ex:
+                Log('下载演员 %s 发生异常：%s' % (role.name, ex))
+            xml = xml + '</actor>\n'
+
+        # 海报
+        filepath = newfilepath + '/' + filename+'-poster'+'.jpg'
+        try:
+            if not os.path.exists(filepath):
+                poster_download_count = 1
+                for index in range(int(Prefs['Cycles'])):
+                    Log('尝试海报 %s 第 %s/%s 次下载' %
+                        (number, int(index+1), Prefs['Cycles']))
+                    HTTP.ClearCache()
+                    HTTP.CacheTime = CACHE_1MONTH
+                    poster = HTTP.Request(
+                        purl, timeout=timeout).content
+                    with io.open(filepath, 'wb') as f:
+                        f.write(poster)
+                    if os.path.getsize(filepath) > 1:
+                        Log('海报 %s 下载完成' % number)
+                        break
+                    elif poster_download_count == int(Prefs['Cycles']):
+                        Log('海报 %s 下载失败' % number)
+                    else:
+                        poster_download_count = int(poster_download_count+1)
+            xml = xml + '<thumb>%s</thumb>\n' % purl
+        except Exception as ex:
+            Log('下载 %s 海报发生异常：%s' % (number, ex))
+
+        # 背景
+        filepath = newfilepath + '/' + filename+'-fanart'+'.jpg'
+        try:
+            if not os.path.exists(filepath):
+                art_download_count = 1
+                for index in range(int(Prefs['Cycles'])):
+                    Log('尝试背景 %s 第 %s/%s 次下载' %
+                        (number, int(index+1), Prefs['Cycles']))
+                    HTTP.ClearCache()
+                    HTTP.CacheTime = CACHE_1MONTH
+                    art = HTTP.Request(
+                        aurl, timeout=timeout).content
+                    with io.open(filepath, 'wb') as f:
+                        f.write(art)
+                    if os.path.getsize(filepath) > 1:
+                        Log('背景 %s 下载完成' % number)
+                        break
+                    elif art_download_count == int(Prefs['Cycles']):
+                        Log('背景 %s 下载失败' % number)
+                    else:
+                        art_download_count = int(art_download_count+1)
+
+        except Exception as ex:
+            Log('下载 %s 背景发生异常：%s' % (number, ex))
+
+        xml = xml + '</movie>'
+
+        # 保存 NFO
+        nfofilepath = newfilepath+'/'+number+'.nfo'
+        fo = io.open(nfofilepath, "w")
+        fo.write(xml)
+        fo.close()
+
+    def getMediaLocalPath(self, media):
+        '''
+        获取本地媒体路径
+        '''
+        mediafilepath = ''
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
+        medianame = ''
+        extensionname = ''
+
+        for i in range(len(mediafilepathlist)):
+            if i == (len(mediafilepathlist) - 1):
+                medianame = mediafilepathlist[i].split('.')[0]
+                extensionname = mediafilepathlist[i].split('.')[1]
+
+        file = medianame + '.' + extensionname
+        mediafilepath = media.filename.replace(file, '')
+
+        return mediafilepath
+
+    def getMediaLocalFileName(self, media):
+        '''
+        获得本地媒体文件名
+        '''
+        tmp = []
+        relist = []
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
+        for i in range(len(mediafilepathlist)):
+            if i == (len(mediafilepathlist) - 1):
+                medianamelist = mediafilepathlist[i].split('.')
+                for j in range(len(medianamelist)):
+                    if j < (len(medianamelist)-1):
+                        tmp.append(medianamelist[j])
+        medianame = ' '.join(tmp)
+        return medianame
+
+    def getMediaLocalFileExtensionName(self, media):
+        '''
+        获得本地媒体后缀名
+        '''
+        extensionname = ''
+        mediafilepathlist = media.items[0].parts[0].file.split('/')
+        for i in range(len(mediafilepathlist)):
+            if i == (len(mediafilepathlist) - 1):
+                extensionname = mediafilepathlist[i].split('0')[1]
+
+        return extensionname
+
+    def searchFilesPath(self, filepath, fname):
+        result = []
+        # 遍历当前文件夹下面的所有文件
+        for item in os.listdir(filepath):
+            # 遍历时，拼接好当前文件的路径
+            item_path = os.path.join(filepath, item)
+
+            # 如果当前文件类型为文件夹
+            if os.path.isdir(item_path):
+                # 调用自身search递归查找
+                self.searchFilesPath(item_path, fname)
+
+            # 如果当前文件为文件
+            elif os.path.isfile(item_path):
+                # 判断fname是否在item中
+                if fname.lower() in item.lower():
+                    # 如果在，将该文件路径加入结果reslut中
+                    result.append(item_path+'')
+
+        return result

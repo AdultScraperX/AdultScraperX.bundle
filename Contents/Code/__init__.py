@@ -16,7 +16,7 @@ element_from_string = XML.ElementFromString
 load_file = Core.storage.load
 
 PREFIX = '/video/AdultScraperX'
-NAME = 'AdultScraperX Beta1.6.1'
+NAME = 'AdultScraperX Beta1.6.2'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -531,9 +531,18 @@ class AdultScraperXAgent(Agent.Movies):
         Log('解析base64传递数据-文件类型判别标记：%s' % dirTagLine)
         
         # 微调参数
-        r = data['r']
-        w = data['w']
-        h = data['h']
+        try:            
+            r = data['r']
+        except Exception as ex:
+            r = 0
+        try:            
+            w = data['w']
+        except Exception as ex:
+            w = 0
+        try:            
+            h = data['h']
+        except Exception as ex:
+            h = 0
 
 
         '在标语处显示来源元数据站点'

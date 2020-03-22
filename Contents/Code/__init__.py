@@ -53,18 +53,45 @@ class AdultScraperXAgent(Agent.Movies):
         nfopath = self.searchFilesPath(msrcfilepath, '.nfo')
         Log(nfopath)
 
+        # 海报剪切微调
+        '''
+        :param r: 横向裁切位置
+        :param w: 缩放比例:宽
+        :param h: 缩放比例:高
+        '''
+        pcft = None
+        r = 0
+        w = 0
+        h = 0
+        if len(re.findall('--pcft', media.name)) > 0:
+            Log('海报微调模式：开启')
+            tmps = media.name.split('--pcft')
+            tmp = tmps[1].split(',')
+            for index, rwh in enumerate(range(len(tmp))):
+                res = re.findall(r'\d[0-9]{0,}', tmp[index].replace(' ',''))
+                if len(res)>0:   
+                    if index == 0:
+                        r = res[0]
+                    if index == 1:
+                        w = res[0]
+                    if index == 2:
+                        h = res[0]
+            media.name = tmps[0]
+            pcft={'r':r,'w':w,'h':h}
+            Log('\n横向裁切位置r: %s\n缩放比例:宽w: %s\n缩放比例:高h: %s\n参数0为默认执行' % (r, w, h))
+
         if len(re.findall('--checkState', media.name)) > 0 or len(re.findall('--checkSpider', media.name)) > 0 or len(re.findall('--nore', media.name)) > 0:
             Log('命令模式：开启')
             self.searchLocalMediaNFO(results, media, lang, manual, nfopath)
-            self.searchOnlineMediaInfo(results, media, lang, manual)
+            self.searchOnlineMediaInfo(results, media, lang, manual,pcft)
         else:
             if len(nfopath) > 0:
                 Log('查询模式：local')
                 if not self.searchLocalMediaNFO(results, media, lang, manual, nfopath):
-                    self.searchOnlineMediaInfo(results, media, lang, manual)
+                    self.searchOnlineMediaInfo(results, media, lang, manual,pcft)
             else:
                 Log('查询模式：Online')
-                self.searchOnlineMediaInfo(results, media, lang, manual)
+                self.searchOnlineMediaInfo(results, media, lang, manual,pcft)
 
     def assrtDownSubTitle(self, number, path):
         # 射手
@@ -333,7 +360,7 @@ class AdultScraperXAgent(Agent.Movies):
         else:
             return False
 
-    def searchOnlineMediaInfo(self, results, media, lang, manual):
+    def searchOnlineMediaInfo(self, results, media, lang, manual,pcft):
         Log('======开始查询======')
         # 获取path
         dirTagLine = None
@@ -364,7 +391,6 @@ class AdultScraperXAgent(Agent.Movies):
         if dirTagLine != None:
 
             if manual:
-
                 LocalFileName = media.name
                 queryname = base64.b64encode(LocalFileName).replace('/', '[s]')
                 Log('手动匹配Plex输出文件名：%s' % media.name)
@@ -392,7 +418,8 @@ class AdultScraperXAgent(Agent.Movies):
                             name = ''
                             media_d = ''
                             wk = data_list_key
-                            data = json_data.get(data_list_key)
+                            data = json_data.get(data_list_key)                            
+                            data.update(pcft)# 微调海报参数
                             data.update(original_title='')
                             for item_key in data:
                                 if item_key == 'm_number':
@@ -492,6 +519,12 @@ class AdultScraperXAgent(Agent.Movies):
         data = json.loads(data)
         dirTagLine = metadata_list[4]
         Log('解析base64传递数据-文件类型判别标记：%s' % dirTagLine)
+        
+        # 微调参数
+        r = data['r']
+        w = data['w']
+        h = data['h']
+
 
         '在标语处显示来源元数据站点'
         metadata.tagline = webkey
@@ -682,8 +715,8 @@ class AdultScraperXAgent(Agent.Movies):
                         'webkey': webkey.lower()
                     }
                     poster_data_json = json.dumps(poster_data)
-                    purl = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                             Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                    purl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(poster_data_json),r,w,h)
                     Log('海报：%s' % purl)
                     try:
                         poster = HTTP.Request(purl, timeout=timeout).content
@@ -752,10 +785,9 @@ class AdultScraperXAgent(Agent.Movies):
 
         # 下载字幕
         if Prefs['SubtitleDown'] == '开启':
-            dcount = self.assrtDownSubTitle(number, msrcfilepath) 
-            if dcount > 0:                
+            dcount = self.assrtDownSubTitle(number, msrcfilepath)
+            if dcount > 0:
                 Log('匹配到字幕并下载完成 %s 个' % dcount)
-            
 
         if not webkey == 'NFO':
             if Prefs['BKNFO'] == '开启':

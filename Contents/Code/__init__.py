@@ -16,7 +16,7 @@ element_from_string = XML.ElementFromString
 load_file = Core.storage.load
 
 PREFIX = '/video/AdultScraperX'
-NAME = 'AdultScraperX Beta1.6.0'
+NAME = 'AdultScraperX Beta1.6.1'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -59,7 +59,7 @@ class AdultScraperXAgent(Agent.Movies):
         :param w: 缩放比例:宽
         :param h: 缩放比例:高
         '''
-        pcft = None
+        pcft = {}
         r = 0
         w = 0
         h = 0
@@ -77,8 +77,13 @@ class AdultScraperXAgent(Agent.Movies):
                     if index == 2:
                         h = res[0]
             media.name = tmps[0]
-            pcft={'r':r,'w':w,'h':h}
+            pcft.update({'r':r,'w':w,'h':h})
             Log('\n横向裁切位置r: %s\n缩放比例:宽w: %s\n缩放比例:高h: %s\n参数0为默认执行' % (r, w, h))
+        else:            
+            Log('海报微调模式：关闭')
+            pcft.update({'r':r,'w':w,'h':h})
+            Log('\n横向裁切位置r: %s\n缩放比例:宽w: %s\n缩放比例:高h: %s\n参数0为默认执行' % (r, w, h))
+
 
         if len(re.findall('--checkState', media.name)) > 0 or len(re.findall('--checkSpider', media.name)) > 0 or len(re.findall('--nore', media.name)) > 0:
             Log('命令模式：开启')
@@ -337,7 +342,9 @@ class AdultScraperXAgent(Agent.Movies):
             except Exception as ex:
                 Log('NFO dirTagLine : %s' % ex)
                 return False
-
+            data.update(
+                {'r':0,'w':0,'h':0}
+                )
             jsondata = json.dumps(data)
 
             Log('查询结果数据：%s' % jsondata)
@@ -420,6 +427,7 @@ class AdultScraperXAgent(Agent.Movies):
                             wk = data_list_key
                             data = json_data.get(data_list_key)                            
                             data.update(pcft)# 微调海报参数
+                            Log(pcft)
                             data.update(original_title='')
                             for item_key in data:
                                 if item_key == 'm_number':
@@ -474,7 +482,7 @@ class AdultScraperXAgent(Agent.Movies):
                         for webkey in data:
                             media_dict = data.get(webkey)
                             wk = webkey
-                            media_dict.update(original_title='')
+                            media_dict.update(original_title='')            
                             for item_key in media_dict:
                                 if item_key == 'm_number':
                                     id = media_dict.get(item_key)
@@ -483,7 +491,9 @@ class AdultScraperXAgent(Agent.Movies):
                                         item_key)
                                     name = media_dict.get(item_key)
 
+                            media_dict.update(pcft)# 微调海报参数
                             media_d = json.dumps(media_dict)
+                                                             
                         id = base64.b64encode('%s|A|%s|%s|%s' % (
                             id, wk, media_d, dirTagLine))
                         score = 100
@@ -743,8 +753,8 @@ class AdultScraperXAgent(Agent.Movies):
                         'webkey': webkey.lower()
                     }
                     art_data_json = json.dumps(art_data)
-                    aurl = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                             Prefs['Service_Port'], base64.b64encode(art_data_json))
+                    aurl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
+                                             Prefs['Service_Port'], base64.b64encode(art_data_json),r,w,h)
                     Log('背景：%s' % aurl)
                     try:
                         art = HTTP.Request(aurl, timeout=timeout).content
@@ -772,8 +782,8 @@ class AdultScraperXAgent(Agent.Movies):
                             if webkey == 'NFO':
                                 url = imgurl
                             else:
-                                url = '%s:%s/img/%s' % (Prefs['Service_IP'],
-                                                        Prefs['Service_Port'], base64.b64encode(art_data_json))
+                                url = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
+                                                        Prefs['Service_Port'], base64.b64encode(art_data_json),r,w,h)
                                 Log('演员 %s 头像：%s' % (role.name, url))
 
                             role.photo = url

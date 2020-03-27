@@ -16,7 +16,7 @@ element_from_string = XML.ElementFromString
 load_file = Core.storage.load
 
 PREFIX = '/video/AdultScraperX'
-NAME = 'AdultScraperX Beta1.6.2'
+NAME = 'AdultScraperX Beta1.6.3'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 PMS_URL = 'http://127.0.0.1:32400/library/sections/'
@@ -82,12 +82,12 @@ class AdultScraperXAgent(Agent.Movies):
         else:            
             Log('海报微调模式：关闭')
             pcft.update({'r':r,'w':w,'h':h})
-            Log('\n横向裁切位置r: %s\n缩放比例:宽w: %s\n缩放比例:高h: %s\n参数0为默认执行' % (r, w, h))
+            #Log('\n横向裁切位置r: %s\n缩放比例:宽w: %s\n缩放比例:高h: %s\n参数0为默认执行' % (r, w, h))
 
 
         if len(re.findall('--checkState', media.name)) > 0 or len(re.findall('--checkSpider', media.name)) > 0 or len(re.findall('--nore', media.name)) > 0:
             Log('命令模式：开启')
-            self.searchLocalMediaNFO(results, media, lang, manual, nfopath)
+            #self.searchLocalMediaNFO(results, media, lang, manual, nfopath)
             self.searchOnlineMediaInfo(results, media, lang, manual,pcft)
         else:
             if len(nfopath) > 0:
@@ -441,8 +441,8 @@ class AdultScraperXAgent(Agent.Movies):
                                         'webkey': wk.lower()
                                     }
                                     poster_data_json = json.dumps(poster_data)
-                                    url = '%s:%s/img/%s' % (
-                                        Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json))
+                                    url = '%s:%s/img/%s/%s/%s/%s' % (
+                                        Prefs['Service_IP'], Prefs['Service_Port'], base64.b64encode(poster_data_json),pcft['r'],pcft['w'],pcft['h'])
 
                                     thumb = url
                                     name = '%s: %s %s' % (
@@ -507,12 +507,6 @@ class AdultScraperXAgent(Agent.Movies):
         Log('======结束查询======')
 
     def update(self, metadata, media, lang):
-        # sections = XML.ElementFromURL(PMS_URL).xpath('//Directory')
-        # for section in sections:
-        #     key = section.get('key')
-        #     Log(key)
-        #     title = section.get('title')
-        #     Log(title)
 
         msrcfilepath = os.path.join('/'.join(media.items[0].parts[0].file.split('/')[
                                     0:len(media.items[0].parts[0].file.split('/'))-1]))
@@ -810,8 +804,9 @@ class AdultScraperXAgent(Agent.Movies):
 
         if not webkey == 'NFO':
             if Prefs['BKNFO'] == '开启':
-                self.createNFO(metadata, media, number, poster,
-                               purl, art, aurl, dirTagLine)
+                if not dirTagLine == 'europe':
+                    self.createNFO(metadata, media, number, poster,
+                                purl, art, aurl, dirTagLine)
 
         Log('更新媒体信息 ：【%s】 结束' % m_id)
         Log('======结束执行更新媒体信息======')

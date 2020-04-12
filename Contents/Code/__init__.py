@@ -712,26 +712,28 @@ class AdultScraperXAgent(Agent.Movies):
 
             if media_item == 'm_poster':
                 if webkey == 'NFO':
-                    posterpath = self.searchFilesPath(
-                        msrcfilepath, '-poster.jpg')[0]
                     try:
-                        metadata.posters[posterpath] = Proxy.Media(
-                            load_file(posterpath))
+                        posterpath = self.searchFilesPath(
+                            msrcfilepath, '-poster.jpg')
+                        if posterpath.count>0:
+                            posterpath=posterpath[0]
+                            metadata.posters[posterpath] = Proxy.Media(
+                                load_file(posterpath))
                     except Exception as ex:
                         Log('NFO海报 : 捕获异常：%s:%s' % (ex, posterpath))
                 else:
-                    poster_url = data.get(media_item)
-
-                    poster_data = {
-                        'mode': 'poster',
-                        'url': poster_url,
-                        'webkey': webkey.lower()
-                    }
-                    poster_data_json = json.dumps(poster_data)
-                    purl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
-                                             Prefs['Service_Port'], base64.b64encode(poster_data_json),r,w,h)
-                    Log('海报：%s' % purl)
                     try:
+                        poster_url = data.get(media_item)
+
+                        poster_data = {
+                            'mode': 'poster',
+                            'url': poster_url,
+                            'webkey': webkey.lower()
+                        }
+                        poster_data_json = json.dumps(poster_data)
+                        purl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
+                                                Prefs['Service_Port'], base64.b64encode(poster_data_json),r,w,h)
+                        Log('海报：%s' % purl)
                         poster = HTTP.Request(purl, timeout=timeout).content
                     except Exception as ex:
                         Log('海报捕获异常：%s:%s' % (ex, purl))
@@ -740,26 +742,27 @@ class AdultScraperXAgent(Agent.Movies):
 
             if media_item == 'm_art_url':
                 if webkey == 'NFO':
-                    artpath = self.searchFilesPath(
-                        msrcfilepath, '-fanart.jpg')[0]
                     try:
-                        metadata.art[artpath] = Proxy.Media(
-                            load_file(artpath))
+                        artpath = self.searchFilesPath(msrcfilepath, '-fanart.jpg')
+                        if artpath.count>0:
+                            artpath=artpath[0]
+                            metadata.art[artpath] = Proxy.Media(
+                                load_file(artpath))
                     except Exception as ex:
                         Log('NFO背景 ： 捕获异常：%s:%s' % (ex, artpath))
                 else:
-                    art_url = data.get(media_item)
-
-                    art_data = {
-                        'mode': 'art',
-                        'url': art_url,
-                        'webkey': webkey.lower()
-                    }
-                    art_data_json = json.dumps(art_data)
-                    aurl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
-                                             Prefs['Service_Port'], base64.b64encode(art_data_json),r,w,h)
-                    Log('背景：%s' % aurl)
                     try:
+                        art_url = data.get(media_item)
+
+                        art_data = {
+                            'mode': 'art',
+                            'url': art_url,
+                            'webkey': webkey.lower()
+                        }
+                        art_data_json = json.dumps(art_data)
+                        aurl = '%s:%s/img/%s/%s/%s/%s' % (Prefs['Service_IP'],
+                                                Prefs['Service_Port'], base64.b64encode(art_data_json),r,w,h)
+                        Log('背景：%s' % aurl)
                         art = HTTP.Request(aurl, timeout=timeout).content
                     except Exception as ex:
                         Log('背景捕获异常：%s:%s' % (ex, aurl))

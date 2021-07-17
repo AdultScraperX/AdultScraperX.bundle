@@ -1,5 +1,6 @@
 ### TG群：https://t.me/AdultScraperX
 # AdultScraperX 
+## 此项目以停止更新，欢迎使用本项目的全新版本[Gsetant](https://github.com/gsetant/general-server-assistant)
 ### AdultScraperX是一个可以匹配成人影片信息的插件(不提供任何影片下载与观看连接)，仅提供简介、演员、标题、类型、系列、导演、工作室的信息匹配。
 ## AdultScraperX 需要搭配 AdultScraperX-server 一起使用
 - 服务端项目地址：
